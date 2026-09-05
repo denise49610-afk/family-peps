@@ -1,0 +1,180 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Nunito", ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: #f4efe6;
+  --color-bg-deep: #ebe4d6;
+  --color-surface: #ffffff;
+  --color-surface-2: #f7f3ec;
+  --color-ink: #2a2430;
+  --color-muted: #8a8494;
+  --color-faint: #b4aeb8;
+  --color-primary: #7c5cff;
+  --color-primary-fg: #ffffff;
+  --color-accent: #6fcf7a;
+  --color-accent-fg: #14331a;
+  --color-line: #ece6dc;
+  --color-ok: #6fcf7a;
+  --color-warn: #f0b14a;
+  --color-danger: #ee7a86;
+  --color-sun: #f5c97a;
+  --color-zen-z: #6fcf7a;
+  --color-zen-e: #f48fb1;
+  --color-zen-n: #8b7cf7;
+
+  --color-member-rose: #f48fb1;
+  --color-member-rose-soft: #fde8f0;
+  --color-member-rose-fg: #6b2744;
+  --color-member-bleu: #7eb6f5;
+  --color-member-bleu-soft: #e7f2fe;
+  --color-member-bleu-fg: #1d3f6b;
+  --color-member-orange: #f5b37a;
+  --color-member-orange-soft: #fff0e2;
+  --color-member-orange-fg: #6b3a14;
+  --color-member-violet: #b49af0;
+  --color-member-violet-soft: #f1eaff;
+  --color-member-violet-fg: #3d2a6b;
+  --color-member-turquoise: #7ecfc0;
+  --color-member-turquoise-soft: #e4f7f3;
+  --color-member-turquoise-fg: #1b4a42;
+  --color-member-vert: #7bc96f;
+  --color-member-vert-soft: #e7f7e4;
+  --color-member-vert-fg: #1d4a22;
+  --color-member-jaune: #f5c97a;
+  --color-member-jaune-soft: #fff6e3;
+  --color-member-jaune-fg: #5c4310;
+  --color-member-corail: #f08a8a;
+  --color-member-corail-soft: #ffe8e8;
+  --color-member-corail-fg: #6b2424;
+
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-2xl: 40px;
+
+  --shadow-card: 0 8px 24px -16px rgba(42, 36, 48, 0.18);
+  --shadow-card-hover: 0 12px 28px -14px rgba(42, 36, 48, 0.22);
+  --shadow-pop: 0 16px 36px -14px rgba(124, 92, 255, 0.45);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-primary) 28%, white);
+    color: var(--color-ink);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .card-shadow {
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-shadow-hover {
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  .zen-wash {
+    background-color: var(--color-bg);
+  }
+
+  .tap {
+    transition:
+      transform 160ms var(--ease-out),
+      box-shadow 160ms var(--ease-out);
+  }
+  .tap:hover {
+    transform: translateY(-1px);
+  }
+  .tap:active {
+    transform: scale(0.97);
+  }
+
+  .stagger-in > * {
+    animation: fade-up 480ms var(--ease-out) both;
+  }
+  .stagger-in > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-in > *:nth-child(2) { animation-delay: 50ms; }
+  .stagger-in > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-in > *:nth-child(4) { animation-delay: 150ms; }
+  .stagger-in > *:nth-child(5) { animation-delay: 200ms; }
+  .stagger-in > *:nth-child(6) { animation-delay: 250ms; }
+  .stagger-in > *:nth-child(7) { animation-delay: 300ms; }
+  .stagger-in > *:nth-child(8) { animation-delay: 350ms; }
+
+  .nav-plus {
+    box-shadow:
+      0 10px 24px -8px rgba(124, 92, 255, 0.55),
+      0 0 0 6px color-mix(in oklab, var(--color-primary) 12%, white);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in > *,
+  .tap {
+    animation: none !important;
+    transition: none !important;
+  }
+}
