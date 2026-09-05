@@ -27,27 +27,82 @@
   --color-member-rose: #f48fb1;
   --color-member-rose-soft: #fde8f0;
   --color-member-rose-fg: #6b2744;
-  --color-member-bleu: #7eb6f5;
-  --color-member-bleu-soft: #e7f2fe;
-  --color-member-bleu-fg: #1d3f6b;
-  --color-member-orange: #f5b37a;
-  --color-member-orange-soft: #fff0e2;
-  --color-member-orange-fg: #6b3a14;
-  --color-member-violet: #b49af0;
-  --color-member-violet-soft: #f1eaff;
-  --color-member-violet-fg: #3d2a6b;
-  --color-member-turquoise: #7ecfc0;
-  --color-member-turquoise-soft: #e4f7f3;
-  --color-member-turquoise-fg: #1b4a42;
-  --color-member-vert: #7bc96f;
-  --color-member-vert-soft: #e7f7e4;
-  --color-member-vert-fg: #1d4a22;
-  --color-member-jaune: #f5c97a;
-  --color-member-jaune-soft: #fff6e3;
-  --color-member-jaune-fg: #5c4310;
   --color-member-corail: #f08a8a;
   --color-member-corail-soft: #ffe8e8;
   --color-member-corail-fg: #6b2424;
+  --color-member-rouge: #e85d5d;
+  --color-member-rouge-soft: #fde8e8;
+  --color-member-rouge-fg: #6b1c1c;
+  --color-member-peche: #f3a07c;
+  --color-member-peche-soft: #ffeee6;
+  --color-member-peche-fg: #6b3318;
+  --color-member-terracotta: #d07858;
+  --color-member-terracotta-soft: #f8ebe4;
+  --color-member-terracotta-fg: #5c2c1c;
+  --color-member-orange: #f5b37a;
+  --color-member-orange-soft: #fff0e2;
+  --color-member-orange-fg: #6b3a14;
+  --color-member-ambre: #e09a3e;
+  --color-member-ambre-soft: #fff3dc;
+  --color-member-ambre-fg: #5c3d0c;
+  --color-member-jaune: #f5c97a;
+  --color-member-jaune-soft: #fff6e3;
+  --color-member-jaune-fg: #5c4310;
+  --color-member-citron: #c9bc3a;
+  --color-member-citron-soft: #f7f5d4;
+  --color-member-citron-fg: #4a4510;
+  --color-member-menthe: #6ed0a5;
+  --color-member-menthe-soft: #e3f8ef;
+  --color-member-menthe-fg: #165238;
+  --color-member-vert: #7bc96f;
+  --color-member-vert-soft: #e7f7e4;
+  --color-member-vert-fg: #1d4a22;
+  --color-member-sapin: #3d9a6e;
+  --color-member-sapin-soft: #ddf3e8;
+  --color-member-sapin-fg: #0f3d2a;
+  --color-member-sauge: #8aaa78;
+  --color-member-sauge-soft: #eef4e8;
+  --color-member-sauge-fg: #334428;
+  --color-member-turquoise: #7ecfc0;
+  --color-member-turquoise-soft: #e4f7f3;
+  --color-member-turquoise-fg: #1b4a42;
+  --color-member-cyan: #5cc8e0;
+  --color-member-cyan-soft: #e0f6fb;
+  --color-member-cyan-fg: #164a56;
+  --color-member-ciel: #8ec8f0;
+  --color-member-ciel-soft: #e8f5fc;
+  --color-member-ciel-fg: #1c4560;
+  --color-member-bleu: #7eb6f5;
+  --color-member-bleu-soft: #e7f2fe;
+  --color-member-bleu-fg: #1d3f6b;
+  --color-member-marine: #4a7cc8;
+  --color-member-marine-soft: #e4ecf8;
+  --color-member-marine-fg: #1a3258;
+  --color-member-indigo: #6b6fd4;
+  --color-member-indigo-soft: #e8e9fa;
+  --color-member-indigo-fg: #2a2c66;
+  --color-member-violet: #b49af0;
+  --color-member-violet-soft: #f1eaff;
+  --color-member-violet-fg: #3d2a6b;
+  --color-member-lilas: #c9a0e8;
+  --color-member-lilas-soft: #f5eafc;
+  --color-member-lilas-fg: #4a2a66;
+  --color-member-lavande: #a89ad8;
+  --color-member-lavande-soft: #eeeaf8;
+  --color-member-lavande-fg: #32285c;
+  --color-member-fuchsia: #d96bb3;
+  --color-member-fuchsia-soft: #fbe8f4;
+  --color-member-fuchsia-fg: #5c2048;
+  --color-member-bordeaux: #b04a62;
+  --color-member-bordeaux-soft: #f8e4e8;
+  --color-member-bordeaux-fg: #4a1824;
+  --color-member-chocolat: #b07a52;
+  --color-member-chocolat-soft: #f4ebe3;
+  --color-member-chocolat-fg: #4a2e1c;
+  --color-member-taupe: #9a8b7a;
+  --color-member-taupe-soft: #f1ece6;
+  --color-member-taupe-fg: #3f352c;
+
 
   --radius-sm: 12px;
   --radius-md: 18px;
@@ -157,6 +212,21 @@
     box-shadow:
       0 10px 24px -8px rgba(124, 92, 255, 0.55),
       0 0 0 6px color-mix(in oklab, var(--color-primary) 12%, white);
+  }
+
+  .chip-scroll {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    padding: 0.35rem 0.2rem 0.5rem;
+    margin-inline: -0.2rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .chip-scroll::-webkit-scrollbar {
+    display: none;
   }
 }
 

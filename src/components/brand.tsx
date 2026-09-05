@@ -47,7 +47,8 @@ export function FamiZenWordmark({
 }
 
 export function memberTone(color: string, kind: "solid" | "soft" | "fg" = "solid"): string {
-  if (kind === "soft") return `var(--color-member-${color}-soft)`;
-  if (kind === "fg") return `var(--color-member-${color}-fg)`;
-  return `var(--color-member-${color})`;
+  const safe = color && /^[a-z]+$/.test(color) ? color : "turquoise";
+  if (kind === "soft") return `var(--color-member-${safe}-soft)`;
+  if (kind === "fg") return `var(--color-member-${safe}-fg)`;
+  return `var(--color-member-${safe})`;
 }

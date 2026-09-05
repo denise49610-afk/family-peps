@@ -39,32 +39,39 @@ export function MemberAvatar({
   className?: string;
 }) {
   const emoji = member.avatar?.trim();
+  const ring = size === "xl" || size === "lg" ? 3 : 2;
   return (
     <span
-      className={cn(
-        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-bold ring-2 ring-white",
-        SIZES[size],
-        className,
-      )}
+      className={cn("relative inline-flex shrink-0 items-center justify-center", SIZES[size], className)}
       style={{
-        backgroundColor: member.photo ? undefined : memberTone(member.color, "soft"),
-        color: memberTone(member.color, "fg"),
-        boxShadow: emoji || member.photo ? `0 0 0 2px ${memberTone(member.color)}` : undefined,
+        padding: ring,
+        backgroundColor: memberTone(member.color),
+        borderRadius: 9999,
       }}
     >
-      {member.photo ? (
-        <img
-          src={member.photo}
-          alt=""
-          className="size-full object-cover outline outline-1 -outline-offset-1 outline-ink/10"
-        />
-      ) : emoji ? (
-        <span className={cn("leading-none", EMOJI_SIZES[size])} aria-hidden>
-          {emoji}
-        </span>
-      ) : (
-        <span style={{ color: memberTone(member.color) }}>{initialsOf(member)}</span>
-      )}
+      <span
+        className={cn(
+          "flex size-full items-center justify-center overflow-hidden rounded-full font-bold",
+        )}
+        style={{
+          backgroundColor: member.photo ? "var(--color-surface)" : memberTone(member.color, "soft"),
+          color: memberTone(member.color, "fg"),
+        }}
+      >
+        {member.photo ? (
+          <img
+            src={member.photo}
+            alt=""
+            className="size-full object-cover"
+          />
+        ) : emoji ? (
+          <span className={cn("leading-none", EMOJI_SIZES[size])} aria-hidden>
+            {emoji}
+          </span>
+        ) : (
+          <span style={{ color: memberTone(member.color) }}>{initialsOf(member)}</span>
+        )}
+      </span>
     </span>
   );
 }

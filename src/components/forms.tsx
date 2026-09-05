@@ -15,6 +15,7 @@ import { useFamilyStore } from "@/lib/family/store";
 import {
   EMPTY_HEALTH,
   EMPTY_SCHOOL,
+  MEMBER_COLOR_LABELS,
   MEMBER_COLORS,
   MEMBER_ROLES,
   NONE_RECURRENCE,
@@ -42,20 +43,42 @@ function ColorPicker({
   onChange: (c: MemberColor) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {MEMBER_COLORS.map((c) => (
-        <button
-          key={c}
-          type="button"
-          aria-label={c}
-          onClick={() => onChange(c)}
-          className="size-8 rounded-full tap"
-          style={{
-            backgroundColor: memberTone(c),
-            boxShadow: value === c ? `0 0 0 3px ${memberTone(c, "soft")}, 0 0 0 5px ${memberTone(c)}` : undefined,
-          }}
-        />
-      ))}
+    <div className="grid grid-cols-5 gap-x-1.5 gap-y-2.5 p-0.5 sm:grid-cols-7">
+      {MEMBER_COLORS.map((c) => {
+        const selected = value === c;
+        return (
+          <button
+            key={c}
+            type="button"
+            aria-label={MEMBER_COLOR_LABELS[c]}
+            aria-pressed={selected}
+            onClick={() => onChange(c)}
+            className="tap flex flex-col items-center gap-1"
+          >
+            <span
+              className="flex size-9 items-center justify-center rounded-full"
+              style={{
+                boxShadow: selected
+                  ? `0 0 0 2px var(--color-surface), 0 0 0 4px ${memberTone(c)}`
+                  : "inset 0 0 0 1px color-mix(in oklab, var(--color-ink) 8%, transparent)",
+              }}
+            >
+              <span
+                className="size-7 rounded-full"
+                style={{ backgroundColor: memberTone(c) }}
+              />
+            </span>
+            <span
+              className={cn(
+                "w-full truncate text-center text-[10px] font-bold leading-tight",
+                selected ? "text-ink" : "text-muted",
+              )}
+            >
+              {MEMBER_COLOR_LABELS[c]}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

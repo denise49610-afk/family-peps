@@ -165,27 +165,31 @@ function Home() {
         ) : null}
       </header>
 
-      <div className="flex justify-start gap-5 overflow-x-auto pb-1">
+      <div className="grid grid-cols-4 gap-x-2 gap-y-4">
         {members.map((m) => (
           <Link
             key={m.id}
             to="/membre/$memberId"
             params={{ memberId: m.id }}
-            className="tap flex min-w-[4.4rem] flex-col items-center gap-2"
+            className="tap flex min-w-0 flex-col items-center gap-1.5"
           >
-            <MemberAvatar member={m} size="xl" className="shadow-card" />
-            <span className="text-sm font-extrabold">{m.firstName}</span>
+            <MemberAvatar member={m} size="lg" className="shadow-card" />
+            <span className="w-full truncate text-center text-xs font-extrabold leading-tight">
+              {m.firstName}
+            </span>
           </Link>
         ))}
         <button
           type="button"
           onClick={() => open({ type: "member" })}
-          className="tap flex min-w-[4.4rem] flex-col items-center gap-2 text-muted"
+          className="tap flex min-w-0 flex-col items-center gap-1.5 text-muted"
         >
-          <span className="flex size-24 items-center justify-center rounded-full border-2 border-dashed border-line bg-surface text-2xl font-bold">
+          <span className="flex size-16 items-center justify-center rounded-full border-2 border-dashed border-line bg-surface text-2xl font-bold">
             +
           </span>
-          <span className="text-sm font-extrabold">Ajouter</span>
+          <span className="w-full truncate text-center text-xs font-extrabold leading-tight">
+            Ajouter
+          </span>
         </button>
       </div>
       <p className="-mt-3 text-xs font-semibold text-muted">
