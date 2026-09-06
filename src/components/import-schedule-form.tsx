@@ -568,8 +568,8 @@ export function ImportScheduleForm({
     <Modal
       open
       onOpenChange={(o) => !o && onClose()}
-      title="Importer un planning"
-      description="Photo du planning : on garde l’image + les heures d’école. Pas besoin de saisir chaque cours."
+      title="Photo + horaires d’école"
+      description="1) Photo → 2) horaires détectés automatiquement → 3) vous pouvez tout modifier → 4) Confirmer."
       wide
       footer={
         photoMode && preview ? (
@@ -654,8 +654,7 @@ export function ImportScheduleForm({
             <div className="sticky top-0 z-10 rounded-2xl border border-primary/25 bg-primary/10 p-3 shadow-sm">
               <p className="text-sm font-extrabold text-ink">Photo du planning prête</p>
               <p className="mt-0.5 text-xs font-semibold text-muted">
-                On enregistre la photo + les heures d’école (début → fin). Les cours détaillés
-                ne remplissent pas le planning général.
+                Horaires remplis automatiquement depuis la photo. Tout est modifiable avant de confirmer.
               </p>
               <Button
                 className="mt-2.5 w-full"

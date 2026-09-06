@@ -628,7 +628,9 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
     notes: existing?.notes ?? "",
     categoryId: existing?.categoryId ?? CAT.sport,
     attachmentIds: existing?.attachmentIds ?? [],
+    photo: existing?.photo ?? null,
   }));
+  const photoRef = useRef<HTMLInputElement>(null);
 
   function toggleDay(d: number) {
     setDraft((prev) => ({
@@ -769,6 +771,43 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
             />
           </Field>
         </div>
+        <Field label="Photo (optionnel)">
+          <input
+            ref={photoRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              try {
+                const dataUrl = await fileToStoredDataUrl(f);
+                setDraft((d) => ({ ...d, photo: dataUrl }));
+                toast.success("Photo ajoutée — vous pouvez encore tout modifier");
+              } catch {
+                toast.error("Photo illisible");
+              }
+            }}
+          />
+          {draft.photo ? (
+            <div className="space-y-2">
+              <img src={draft.photo} alt="" className="max-h-40 w-full rounded-xl object-contain bg-surface-2" />
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => photoRef.current?.click()}>
+                  Changer
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setDraft((d) => ({ ...d, photo: null }))}>
+                  Retirer
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button type="button" variant="outline" onClick={() => photoRef.current?.click()}>
+              📷 Ajouter une photo
+            </Button>
+          )}
+        </Field>
         <Field label="Notes">
           <Textarea
             value={draft.notes}
@@ -1215,6 +1254,8 @@ function ScheduleForm({
   const [name, setName] = useState(existing?.name ?? "Emploi du temps");
   const [owner, setOwner] = useState(existing?.memberId ?? memberId ?? members[0]?.id ?? "");
   const [slots, setSlots] = useState<ScheduleSlot[]>(existing?.slots ?? []);
+  const [photo, setPhoto] = useState<string | null>(existing?.photo ?? null);
+  const schedulePhotoRef = useRef<HTMLInputElement>(null);
   const [day, setDay] = useState(1);
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
@@ -1247,7 +1288,7 @@ function ScheduleForm({
       memberId: owner,
       name,
       slots,
-      photo: existing?.photo ?? null,
+      photo,
     };
     if (existing) updateSchedule(existing.id, payload);
     else addSchedule(payload);
@@ -1308,8 +1349,45 @@ function ScheduleForm({
             </Select>
           </Field>
         </div>
+        <Field label="Photo du planning">
+          <input
+            ref={schedulePhotoRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              try {
+                const dataUrl = await fileToStoredDataUrl(f);
+                setPhoto(dataUrl);
+                toast.success("Photo ajoutée — ajoutez ou modifiez les horaires ci-dessous");
+              } catch {
+                toast.error("Photo illisible");
+              }
+            }}
+          />
+          {photo ? (
+            <div className="space-y-2">
+              <img src={photo} alt="" className="max-h-48 w-full rounded-xl object-contain bg-surface-2" />
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => schedulePhotoRef.current?.click()}>
+                  Changer la photo
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setPhoto(null)}>
+                  Retirer
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button type="button" variant="outline" onClick={() => schedulePhotoRef.current?.click()}>
+              📷 Intégrer une photo
+            </Button>
+          )}
+        </Field>
         <div className="rounded-2xl bg-surface-2 p-3">
-          <p className="mb-2 text-sm font-semibold">Ajouter un créneau</p>
+          <p className="mb-2 text-sm font-semibold">Horaires (modifiables à la main)</p>
           <div className="grid gap-2 sm:grid-cols-3">
             <Select value={String(day)} onChange={(e) => setDay(Number(e.target.value))}>
               {[1, 2, 3, 4, 5, 6].map((d) => (

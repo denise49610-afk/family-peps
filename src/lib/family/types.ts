@@ -150,6 +150,8 @@ export type FamilyEvent = {
   color: MemberColor | null;
   recurrence: Recurrence;
   attachmentIds: string[];
+  /** Photo optionnelle (convocation, billet…) */
+  photo?: string | null;
 };
 
 export type TaskPriority = "low" | "medium" | "high";
@@ -183,6 +185,8 @@ export type Activity = {
   notes: string;
   categoryId: string;
   attachmentIds: string[];
+  /** Photo optionnelle (planning club, flyer…) */
+  photo?: string | null;
 };
 
 export type ScheduleSlot = {
