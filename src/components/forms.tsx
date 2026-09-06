@@ -1385,11 +1385,11 @@ function QuickMenu({ onClose }: { onClose: () => void }) {
               open({ type: item.type });
             }}
             className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-left tap"
-            style={{ backgroundColor: `var(--color-member-${item.color}-soft)` }}
+            style={{ backgroundColor: memberTone(item.color, "soft") }}
           >
             <span
               className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/80 text-sm font-black"
-              style={{ color: `var(--color-member-${item.color})` }}
+              style={{ color: memberTone(item.color) }}
             >
               +
             </span>
