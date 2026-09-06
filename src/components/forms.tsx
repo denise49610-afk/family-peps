@@ -1,4 +1,5 @@
 import { ImportScheduleForm } from "@/components/import-schedule-form";
+import { startOfWeek } from "date-fns";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { AvatarPicker, MemberAvatar } from "@/components/member-avatar";
 import { useEditors } from "@/components/editors-context";
 import { CAT } from "@/lib/family/ids";
-import { weekdayLabel } from "@/lib/family/dates";
+import { weekdayLabel, toISODate } from "@/lib/family/dates";
 import { fileToStoredDataUrl, imageDataUrlForAi } from "@/lib/family/files";
 import { parseScheduleWithAi } from "@/lib/family/ai-parse";
 import { useFamilyStore } from "@/lib/family/store";
@@ -1392,7 +1393,11 @@ function ScheduleForm({
   const existing = schedules.find((s) => s.id === id);
   const [name, setName] = useState(existing?.name ?? "Emploi du temps");
   const [owner, setOwner] = useState(existing?.memberId ?? memberId ?? members[0]?.id ?? "");
+  const [weekPattern, setWeekPattern] = useState<"single" | "ab">(existing?.weekPattern ?? "single");
   const [slots, setSlots] = useState<ScheduleSlot[]>(existing?.slots ?? []);
+  const [slotsB, setSlotsB] = useState<ScheduleSlot[]>(existing?.slotsB ?? []);
+  const [activeWeek, setActiveWeek] = useState<"A" | "B">("A");
+  const [aIsCurrentWeek, setAIsCurrentWeek] = useState(true);
   const [photo, setPhoto] = useState<string | null>(existing?.photo ?? null);
   const schedulePhotoRef = useRef<HTMLInputElement>(null);
   const scheduleCameraRef = useRef<HTMLInputElement>(null);
@@ -1408,27 +1413,40 @@ function ScheduleForm({
       toast.error("Indiquez la matière");
       return;
     }
-    setSlots((s) => [
-      ...s,
-      {
-        id: uid("slot"),
-        dayOfWeek: day,
-        startTime,
-        endTime,
-        subject: subject.trim(),
-        room,
-        teacher,
-      },
-    ]);
+    const newSlot: ScheduleSlot = {
+      id: uid("slot"),
+      dayOfWeek: day,
+      startTime,
+      endTime,
+      subject: subject.trim(),
+      room,
+      teacher,
+    };
+    if (weekPattern === "ab" && activeWeek === "B") {
+      setSlotsB((s) => [...s, newSlot]);
+    } else {
+      setSlots((s) => [...s, newSlot]);
+    }
     setSubject("");
   }
 
   function save() {
+    const currentMonday = toISODate(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    const referenceWeekStart =
+      weekPattern === "ab"
+        ? aIsCurrentWeek
+          ? currentMonday
+          : toISODate(new Date(new Date(currentMonday).getTime() - 7 * 24 * 60 * 60 * 1000))
+        : undefined;
     const payload: Omit<Schedule, "id"> = {
       memberId: owner,
       name,
       slots,
       photo,
+      weekPattern,
+      slotsB: weekPattern === "ab" ? slotsB : undefined,
+      referenceWeekStart,
+      weekOverrides: existing?.weekOverrides,
     };
     if (existing) updateSchedule(existing.id, payload);
     else addSchedule(payload);
@@ -1436,16 +1454,19 @@ function ScheduleForm({
     onClose();
   }
 
+  const activeSlots = weekPattern === "ab" && activeWeek === "B" ? slotsB : slots;
+  const setActiveSlots = weekPattern === "ab" && activeWeek === "B" ? setSlotsB : setSlots;
+
   const grouped = useMemo(() => {
     const g: Record<number, ScheduleSlot[]> = {};
-    for (const slot of slots) {
+    for (const slot of activeSlots) {
       (g[slot.dayOfWeek] ??= []).push(slot);
     }
     for (const k of Object.keys(g)) {
       g[Number(k)].sort((a, b) => a.startTime.localeCompare(b.startTime));
     }
     return g;
-  }, [slots]);
+  }, [activeSlots]);
 
   return (
     <Modal
@@ -1479,7 +1500,7 @@ function ScheduleForm({
           <Field label="Nom">
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
-          <Field label="Élève">
+          <Field label="Élève / Personne">
             <Select value={owner} onChange={(e) => setOwner(e.target.value)}>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -1488,6 +1509,52 @@ function ScheduleForm({
               ))}
             </Select>
           </Field>
+        </div>
+        <div className="rounded-2xl bg-surface-2 p-3">
+          <label className="flex items-center gap-2 text-sm font-bold">
+            <input
+              type="checkbox"
+              checked={weekPattern === "ab"}
+              onChange={(e) => {
+                setWeekPattern(e.target.checked ? "ab" : "single");
+                setActiveWeek("A");
+              }}
+            />
+            Alterner Semaine A / Semaine B (horaires qui changent une semaine sur deux)
+          </label>
+          {weekPattern === "ab" ? (
+            <div className="mt-3 flex flex-col gap-3">
+              <label className="flex items-center gap-2 text-xs font-semibold text-muted">
+                <input
+                  type="checkbox"
+                  checked={aIsCurrentWeek}
+                  onChange={(e) => setAIsCurrentWeek(e.target.checked)}
+                />
+                La semaine en cours (aujourd'hui) est la Semaine A
+              </label>
+              <div className="flex rounded-full bg-surface p-1">
+                {(["A", "B"] as const).map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => setActiveWeek(w)}
+                    className={
+                      activeWeek === w
+                        ? "h-9 flex-1 rounded-full bg-ink text-sm font-extrabold text-surface"
+                        : "h-9 flex-1 rounded-full text-sm font-extrabold text-muted"
+                    }
+                  >
+                    Semaine {w}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs font-semibold text-muted">
+                Tu édites les horaires de la <strong>Semaine {activeWeek}</strong> ci-dessous. En cas de
+                changement ponctuel une semaine donnée, modifie directement cette semaine-là depuis le
+                calendrier.
+              </p>
+            </div>
+          ) : null}
         </div>
         <Field label="Photo du planning">
           <input
@@ -1604,7 +1671,7 @@ function ScheduleForm({
                       <button
                         type="button"
                         className="text-danger text-xs font-bold"
-                        onClick={() => setSlots((s) => s.filter((x) => x.id !== slot.id))}
+                        onClick={() => setActiveSlots((s) => s.filter((x) => x.id !== slot.id))}
                       >
                         Retirer
                       </button>

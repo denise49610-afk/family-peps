@@ -216,9 +216,18 @@ export type Schedule = {
   id: string;
   memberId: string;
   name: string;
+  /** Semaine A (ou planning unique si pas d'alternance A/B). */
   slots: ScheduleSlot[];
   /** Photo d'origine de l'emploi du temps (data URL ou asset:id). */
   photo?: string | null;
+  /** "single" (par défaut) ou "ab" pour alterner deux semaines type. */
+  weekPattern?: "single" | "ab";
+  /** Semaine B — utilisée seulement si weekPattern === "ab". */
+  slotsB?: ScheduleSlot[];
+  /** Lundi (ISO) d'une semaine connue comme étant la Semaine A — sert de référence pour l'alternance. */
+  referenceWeekStart?: string;
+  /** Exceptions ponctuelles : lundi (ISO) de la semaine → créneaux propres à cette semaine-là uniquement. */
+  weekOverrides?: Record<string, ScheduleSlot[]>;
 };
 
 export type FamilyDocument = {
