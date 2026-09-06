@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { uid } from "@/lib/utils";
-import { createSeedState, createShowcaseState } from "./seed";
+import { createSeedState } from "./seed";
 import {
   type Activity,
   type AppSettings,
@@ -67,7 +67,7 @@ function emptyFamily(): FamilyState {
 export const useFamilyStore = create<FamilyStore>()(
   persist(
     (set, get) => ({
-      ...createShowcaseState(),
+      ...createSeedState(),
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
       addMember: (member) => {
@@ -287,7 +287,7 @@ export const useFamilyStore = create<FamilyStore>()(
         set((s) => ({
           categories: s.categories.filter((c) => !(c.id === id && !c.builtin)),
         })),
-      resetDemo: () => set(() => createShowcaseState()),
+      resetDemo: () => set(() => createSeedState()),
       wipeAll: () => set(() => emptyFamily()),
       toggleCompleted: (key) =>
         set((s) => {
@@ -299,8 +299,8 @@ export const useFamilyStore = create<FamilyStore>()(
         }),
     }),
     {
-      name: "family-peps-v5-home",
-      version: 9,
+      name: "family-peps-v6-clean",
+      version: 10,
       skipHydration: true,
       migrate: (persisted) => {
         const p = persisted as Partial<FamilyState> & { settings?: Partial<FamilyState["settings"]> };
