@@ -941,17 +941,19 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant="outline" disabled={photoBusy} onClick={() => photoCameraRef.current?.click()}>
-                📷 Prendre une photo
-              </Button>
-              <Button type="button" variant="outline" disabled={photoBusy} onClick={() => photoRef.current?.click()}>
-                🖼️ Choisir dans la galerie
-              </Button>
-            </div>
-            {photoBusy ? (
-              <p className="text-xs font-semibold text-muted">Analyse de la photo…</p>
-            ) : null}
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="button" variant="outline" disabled={photoBusy} onClick={() => photoCameraRef.current?.click()}>
+                  📷 Prendre une photo
+                </Button>
+                <Button type="button" variant="outline" disabled={photoBusy} onClick={() => photoRef.current?.click()}>
+                  🖼️ Choisir dans la galerie
+                </Button>
+              </div>
+              {photoBusy ? (
+                <p className="text-xs font-semibold text-muted">Analyse de la photo…</p>
+              ) : null}
+            </>
           )}
         </Field>
         <Field label="Notes">
