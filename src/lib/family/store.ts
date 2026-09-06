@@ -32,6 +32,7 @@ type FamilyActions = {
   removeTask: (id: string) => void;
   addActivity: (activity: Omit<Activity, "id"> & { id?: string }) => string;
   updateActivity: (id: string, patch: Partial<Activity>) => void;
+  toggleActivityDate: (id: string, date: string) => void;
   removeActivity: (id: string) => void;
   addSchedule: (schedule: Omit<Schedule, "id"> & { id?: string }) => string;
   upsertScheduleForMember: (schedule: Omit<Schedule, "id"> & { id?: string }) => string;
@@ -167,6 +168,17 @@ export const useFamilyStore = create<FamilyStore>()(
       updateActivity: (id, patch) =>
         set((s) => ({
           activities: s.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+        })),
+      toggleActivityDate: (id, date) =>
+        set((s) => ({
+          activities: s.activities.map((a) => {
+            if (a.id !== id) return a;
+            const current = a.excludedDates ?? [];
+            const excludedDates = current.includes(date)
+              ? current.filter((d) => d !== date)
+              : [...current, date];
+            return { ...a, excludedDates };
+          }),
         })),
       removeActivity: (id) =>
         set((s) => ({ activities: s.activities.filter((a) => a.id !== id) })),

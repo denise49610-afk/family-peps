@@ -152,6 +152,7 @@ export function expandActivity(
   }
   if (dayMap.size === 0) return [];
 
+  const excluded = new Set(activity.excludedDates ?? []);
   const first = members.find((m) => activity.memberIds.includes(m.id));
   const occ: Occurrence[] = [];
   let cursor = startOfDay(from);
@@ -159,8 +160,8 @@ export function expandActivity(
   while (cursor <= end) {
     const dow = getDay(cursor);
     const slot = dayMap.get(dow);
-    if (slot) {
-      const date = toISODate(cursor);
+    const date = toISODate(cursor);
+    if (slot && !excluded.has(date)) {
       occ.push({
         id: `act:${activity.id}:${date}`,
         sourceType: "activity",

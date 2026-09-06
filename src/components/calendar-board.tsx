@@ -83,6 +83,8 @@ export function CalendarBoard() {
 
   const conflicts = useMemo(() => detectConflicts(occurrences), [occurrences]);
 
+  const toggleActivityDate = store.toggleActivityDate;
+
   function onOccClick(occ: Occurrence) {
     setSelected(occ);
   }
@@ -263,10 +265,23 @@ export function CalendarBoard() {
                     ? "Anniversaire"
                     : "Événement"}
             </p>
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
               <Button variant="ghost" onClick={() => setSelected(null)}>
                 Fermer
               </Button>
+              {selected.sourceType === "activity" ? (
+                <Button
+                  variant="soft"
+                  onClick={() => {
+                    toggleActivityDate(selected.sourceId, selected.date);
+                    setSelected(null);
+                  }}
+                >
+                  {store.activities.find((a) => a.id === selected.sourceId)?.excludedDates?.includes(selected.date)
+                    ? "Remettre ce jour-là"
+                    : "N'y va pas ce jour-là"}
+                </Button>
+              ) : null}
               {selected.sourceType !== "birthday" ? (
                 <Button onClick={editSelected}>Modifier</Button>
               ) : (

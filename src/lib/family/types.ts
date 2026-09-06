@@ -198,6 +198,8 @@ export type Activity = {
   attachmentIds: string[];
   /** Photo optionnelle (planning club, flyer…) */
   photo?: string | null;
+  /** Dates (ISO) où cette occurrence récurrente est annulée/pas suivie (ex. JJB certains jours). */
+  excludedDates?: string[];
 };
 
 export type ScheduleSlot = {
