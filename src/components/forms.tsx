@@ -10,7 +10,8 @@ import { AvatarPicker, MemberAvatar } from "@/components/member-avatar";
 import { useEditors } from "@/components/editors-context";
 import { CAT } from "@/lib/family/ids";
 import { weekdayLabel } from "@/lib/family/dates";
-import { fileToStoredDataUrl } from "@/lib/family/files";
+import { fileToStoredDataUrl, imageDataUrlForAi } from "@/lib/family/files";
+import { parseScheduleWithAi } from "@/lib/family/ai-parse";
 import { useFamilyStore } from "@/lib/family/store";
 import {
   EMPTY_HEALTH,
@@ -645,6 +646,8 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
   });
   const photoRef = useRef<HTMLInputElement>(null);
   const photoCameraRef = useRef<HTMLInputElement>(null);
+  const members = useFamilyStore((s) => s.members);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   function toggleDay(d: number) {
     setDraft((prev) => {
@@ -678,6 +681,60 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
     });
   }
 
+  async function applyPhoto(file: File) {
+    setPhotoBusy(true);
+    try {
+      const dataUrl = await fileToStoredDataUrl(file);
+      setDraft((d) => ({ ...d, photo: dataUrl }));
+      toast.message("Photo ajoutée — analyse des horaires…");
+      try {
+        const ai = await parseScheduleWithAi({
+          imageDataUrl: await imageDataUrlForAi(dataUrl),
+        });
+        if (ai.ok && ai.slots.length) {
+          // Regroupe par jour : plus tôt / plus tard
+          const byDay = new Map<number, { startTime: string; endTime: string }>();
+          for (const s of ai.slots) {
+            const d = s.dayOfWeek;
+            if (d < 0 || d > 6) continue;
+            const cur = byDay.get(d);
+            if (!cur) {
+              byDay.set(d, { startTime: s.startTime, endTime: s.endTime });
+            } else {
+              if (s.startTime < cur.startTime) cur.startTime = s.startTime;
+              if (s.endTime > cur.endTime) cur.endTime = s.endTime;
+            }
+          }
+          if (byDay.size) {
+            const daySlots = [...byDay.entries()]
+              .map(([dayOfWeek, t]) => ({ dayOfWeek, ...t }))
+              .sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+            setDraft((d) => ({
+              ...d,
+              photo: dataUrl,
+              daySlots,
+              weekdays: daySlots.map((x) => x.dayOfWeek),
+              startTime: daySlots[0].startTime,
+              endTime: daySlots[0].endTime,
+              name: d.name.trim() || "Sport",
+            }));
+            toast.success(
+              `Horaires détectés sur ${daySlots.length} jour${daySlots.length > 1 ? "s" : ""} — vérifiez et enregistrez`,
+            );
+            return;
+          }
+        }
+      } catch {
+        // analyse optionnelle
+      }
+      toast.success("Photo OK — réglez les jours et horaires puis enregistrez");
+    } catch {
+      toast.error("Photo illisible");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   function save() {
     if (!draft.name.trim()) {
       toast.error("Nommez l'activité");
@@ -685,20 +742,28 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
     }
     const daySlots = (draft.daySlots ?? []).filter((s) => s.startTime && s.endTime);
     if (!daySlots.length) {
-      toast.error("Activez au moins un jour et ses horaires");
+      toast.error("Activez au moins un jour (ex. Lun) et ses horaires");
       return;
     }
-    if (!draft.memberIds.length) {
-      toast.error("Indiquez qui participe à l'activité");
+    // Si personne coché → tous les enfants / tous les membres
+    let memberIds = draft.memberIds;
+    if (!memberIds.length) {
+      const kids = members.filter((m) => m.role === "enfant");
+      memberIds = (kids.length ? kids : members).map((m) => m.id);
+    }
+    if (!memberIds.length) {
+      toast.error("Ajoutez d'abord un membre dans Famille");
       return;
     }
     const payload = {
       ...draft,
       name: draft.name.trim(),
+      memberIds,
       daySlots,
       weekdays: daySlots.map((s) => s.dayOfWeek),
       startTime: daySlots[0]?.startTime || "18:00",
       endTime: daySlots[0]?.endTime || "19:30",
+      photo: draft.photo ?? null,
     };
     try {
       if (existing) updateActivity(existing.id, payload);
@@ -706,11 +771,20 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
       toast.success(
         existing
           ? "Activité mise à jour"
-          : "Activité créée — chaque jour avec ses horaires dans l'agenda",
+          : "Activité enregistrée — visible dans l'agenda",
       );
       onClose();
-    } catch {
-      toast.error("Enregistrement impossible — réessayez");
+    } catch (err) {
+      // Quota localStorage souvent lié à la photo
+      try {
+        const light = { ...payload, photo: null };
+        if (existing) updateActivity(existing.id, light);
+        else addActivity(light);
+        toast.success("Enregistré (photo non gardée — stockage plein)");
+        onClose();
+      } catch {
+        toast.error("Enregistrement impossible — libérez de l'espace ou retirez la photo");
+      }
     }
   }
 
@@ -833,17 +907,10 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
             type="file"
             accept="image/*,image/jpeg,image/png,image/webp,image/heic"
             className="hidden"
-            onChange={async (e) => {
+            onChange={(e) => {
               const f = e.target.files?.[0];
-              if (!f) return;
-              try {
-                const dataUrl = await fileToStoredDataUrl(f);
-                setDraft((d) => ({ ...d, photo: dataUrl }));
-                toast.success("Photo ajoutée — vous pouvez encore tout modifier");
-              } catch {
-                toast.error("Photo illisible");
-              }
               e.target.value = "";
+              if (f) void applyPhoto(f);
             }}
           />
           <input
@@ -852,17 +919,10 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
             accept="image/*"
             capture="environment"
             className="hidden"
-            onChange={async (e) => {
+            onChange={(e) => {
               const f = e.target.files?.[0];
-              if (!f) return;
-              try {
-                const dataUrl = await fileToStoredDataUrl(f);
-                setDraft((d) => ({ ...d, photo: dataUrl }));
-                toast.success("Photo prise — vous pouvez encore tout modifier");
-              } catch {
-                toast.error("Photo illisible");
-              }
               e.target.value = "";
+              if (f) void applyPhoto(f);
             }}
           />
           {draft.photo ? (
@@ -882,13 +942,16 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant="outline" onClick={() => photoCameraRef.current?.click()}>
+              <Button type="button" variant="outline" disabled={photoBusy} onClick={() => photoCameraRef.current?.click()}>
                 📷 Prendre une photo
               </Button>
-              <Button type="button" variant="outline" onClick={() => photoRef.current?.click()}>
+              <Button type="button" variant="outline" disabled={photoBusy} onClick={() => photoRef.current?.click()}>
                 🖼️ Choisir dans la galerie
               </Button>
             </div>
+            {photoBusy ? (
+              <p className="text-xs font-semibold text-muted">Analyse de la photo…</p>
+            ) : null}
           )}
         </Field>
         <Field label="Notes">

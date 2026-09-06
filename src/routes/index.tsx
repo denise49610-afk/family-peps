@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Plus,
   Settings,
+  X,
 } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { memberTone, Spark } from "@/components/brand";
@@ -25,6 +26,7 @@ import {
   formatDayLong,
   relativeDayLabel,
   todayISO,
+  toISODate,
 } from "@/lib/family/dates";
 import { useFamilyStore } from "@/lib/family/store";
 import type { Occurrence } from "@/lib/family/types";
@@ -106,25 +108,33 @@ function Home() {
   );
   const todayOcc = occ.filter((o) => o.date === today && o.sourceType !== "schedule");
   const tasks = tasksAll.filter((t) => t.status !== "done");
-  // Rappels = uniquement les 7 prochains jours (semaine courante + proche)
-  const weekEnd = (() => {
-    const d = addDays(now, 6);
-    return d.toISOString().slice(0, 10);
+  // Rappels = uniquement cette semaine (7 jours), sans doublons
+  const weekEnd = toISODate(addDays(now, 6));
+  const upcoming = (() => {
+    const list = occ
+      .filter((o) => {
+        if (o.date < today || o.date > weekEnd) return false;
+        if (doneKeys.includes(o.id)) return false;
+        // Pas les créneaux école détaillés — seulement events / activités / rappels
+        if (o.sourceType === "schedule") return false;
+        return (
+          o.reminderMinutes != null ||
+          o.sourceType === "event" ||
+          o.sourceType === "activity"
+        );
+      })
+      .sort((a, b) => (a.date + (a.startTime || "")).localeCompare(b.date + (b.startTime || "")));
+    // Dédoublonnage : même titre + même jour + même heure = 1 seule fois
+    const seen = new Set<string>();
+    const unique: typeof list = [];
+    for (const o of list) {
+      const key = `${o.title}|${o.date}|${o.startTime || ""}|${o.sourceType}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(o);
+    }
+    return unique.slice(0, 10);
   })();
-  const upcoming = occ
-    .filter((o) => {
-      if (o.date < today) return false;
-      if (o.date > weekEnd) return false; // hors semaine
-      if (doneKeys.includes(o.id)) return false;
-      // Aujourd'hui + rappels / événements / activités de la semaine
-      return (
-        o.reminderMinutes != null ||
-        o.sourceType === "event" ||
-        o.sourceType === "activity"
-      );
-    })
-    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
-    .slice(0, 8);
 
   const conflicts = useMemo(
     () => detectConflicts(occ.filter((o) => o.date === today)),
@@ -430,10 +440,10 @@ function Home() {
           <ul className="flex flex-col gap-2">
             {upcoming.map((o) => (
               <li key={o.id}>
-                <div className="flex items-start gap-3 rounded-2xl bg-white px-3 py-2.5">
+                <div className="flex items-start gap-2 rounded-2xl bg-white px-3 py-2.5">
                   <button
                     type="button"
-                    aria-label="Cocher"
+                    aria-label="Marquer vu"
                     onClick={() => toggleCompleted(o.id)}
                     className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border-2 border-line"
                   />
@@ -449,6 +459,15 @@ function Home() {
                     <span className="mt-0.5 block text-[13px] font-extrabold leading-snug">
                       {o.title}
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Retirer du rappel"
+                    title="Ne plus afficher"
+                    onClick={() => toggleCompleted(o.id)}
+                    className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-surface-2 hover:text-ink"
+                  >
+                    <X className="size-3.5" />
                   </button>
                 </div>
               </li>
