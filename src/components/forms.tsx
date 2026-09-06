@@ -774,17 +774,8 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
           : "Activité enregistrée — visible dans l'agenda",
       );
       onClose();
-    } catch (err) {
-      // Quota localStorage souvent lié à la photo
-      try {
-        const light = { ...payload, photo: null };
-        if (existing) updateActivity(existing.id, light);
-        else addActivity(light);
-        toast.success("Enregistré (photo non gardée — stockage plein)");
-        onClose();
-      } catch {
-        toast.error("Enregistrement impossible — libérez de l'espace ou retirez la photo");
-      }
+    } catch {
+      toast.error("Enregistrement impossible — retirez la photo et réessayez");
     }
   }
 

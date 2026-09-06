@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { uid } from "@/lib/utils";
 import { createSeedState } from "./seed";
 import {
@@ -302,6 +302,21 @@ export const useFamilyStore = create<FamilyStore>()(
       name: "family-peps-v6-clean",
       version: 10,
       skipHydration: true,
+      // Stockage "sûr" : si le quota localStorage est dépassé (ex. photo trop lourde),
+      // on avale l'erreur au lieu de la laisser remonter — sinon l'appelant (ex. addActivity)
+      // pense que l'ajout a échoué, retente avec une version allégée, et l'activité se
+      // retrouve dupliquée en mémoire (le premier ajout avait pourtant déjà eu lieu).
+      storage: createJSONStorage(() => ({
+        getItem: (name) => localStorage.getItem(name),
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, value);
+          } catch (err) {
+            console.warn("Sauvegarde locale impossible (stockage plein) :", err);
+          }
+        },
+        removeItem: (name) => localStorage.removeItem(name),
+      })),
       migrate: (persisted) => {
         const p = persisted as Partial<FamilyState> & { settings?: Partial<FamilyState["settings"]> };
         return {
