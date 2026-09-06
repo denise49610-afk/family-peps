@@ -1,6 +1,5 @@
 import { ImportScheduleForm } from "@/components/import-schedule-form";
-import { startOfWeek } from "date-fns";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
@@ -10,19 +9,17 @@ import { cn } from "@/lib/utils";
 import { AvatarPicker, MemberAvatar } from "@/components/member-avatar";
 import { useEditors } from "@/components/editors-context";
 import { CAT } from "@/lib/family/ids";
-import { weekdayLabel, toISODate } from "@/lib/family/dates";
-import { fileToStoredDataUrl, imageDataUrlForAi } from "@/lib/family/files";
-import { parseScheduleWithAi } from "@/lib/family/ai-parse";
+import { weekdayLabel } from "@/lib/family/dates";
+import { fileToStoredDataUrl } from "@/lib/family/files";
+import { defaultPlanningName } from "@/lib/family/schedule-name";
 import { useFamilyStore } from "@/lib/family/store";
 import {
   EMPTY_HEALTH,
   EMPTY_SCHOOL,
-  MEMBER_COLOR_LABELS,
   MEMBER_COLORS,
   MEMBER_ROLES,
   NONE_RECURRENCE,
   type Activity,
-  type ActivityDaySlot,
   type FamilyContact,
   type FamilyEvent,
   type FamilyMember,
@@ -32,7 +29,6 @@ import {
   type MemberColor,
   type Recurrence,
   type RecurrenceFreq,
-  type Schedule,
   type ScheduleSlot,
 } from "@/lib/family/types";
 import { uid } from "@/lib/utils";
@@ -46,42 +42,20 @@ function ColorPicker({
   onChange: (c: MemberColor) => void;
 }) {
   return (
-    <div className="grid grid-cols-5 gap-x-1.5 gap-y-2.5 p-0.5 sm:grid-cols-7">
-      {MEMBER_COLORS.map((c) => {
-        const selected = value === c;
-        return (
-          <button
-            key={c}
-            type="button"
-            aria-label={MEMBER_COLOR_LABELS[c]}
-            aria-pressed={selected}
-            onClick={() => onChange(c)}
-            className="tap flex flex-col items-center gap-1"
-          >
-            <span
-              className="flex size-9 items-center justify-center rounded-full"
-              style={{
-                boxShadow: selected
-                  ? `0 0 0 2px var(--color-surface), 0 0 0 4px ${memberTone(c)}`
-                  : "inset 0 0 0 1px color-mix(in oklab, var(--color-ink) 8%, transparent)",
-              }}
-            >
-              <span
-                className="size-7 rounded-full"
-                style={{ backgroundColor: memberTone(c) }}
-              />
-            </span>
-            <span
-              className={cn(
-                "w-full truncate text-center text-[10px] font-bold leading-tight",
-                selected ? "text-ink" : "text-muted",
-              )}
-            >
-              {MEMBER_COLOR_LABELS[c]}
-            </span>
-          </button>
-        );
-      })}
+    <div className="flex flex-wrap gap-2">
+      {MEMBER_COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          aria-label={c}
+          onClick={() => onChange(c)}
+          className="size-8 rounded-full tap"
+          style={{
+            backgroundColor: memberTone(c),
+            boxShadow: value === c ? `0 0 0 3px ${memberTone(c, "soft")}, 0 0 0 5px ${memberTone(c)}` : undefined,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -153,71 +127,29 @@ function RecurrenceFields({
   value: Recurrence;
   onChange: (r: Recurrence) => void;
 }) {
-  function toggleWeekday(d: number) {
-    const current = value.byWeekday ?? [];
-    const next = current.includes(d)
-      ? current.filter((x) => x !== d)
-      : [...current, d].sort((a, b) => a - b);
-    onChange({ ...value, byWeekday: next.length ? next : undefined });
-  }
-
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Répétition">
-          <Select
-            value={value.freq}
-            onChange={(e) => {
-              const freq = e.target.value as RecurrenceFreq;
-              onChange({
-                ...value,
-                freq,
-                // Reset jours si on quitte le mode hebdo
-                byWeekday: freq === "weekly" ? value.byWeekday : undefined,
-              });
-            }}
-          >
-            <option value="none">Une seule fois</option>
-            <option value="daily">Tous les jours</option>
-            <option value="weekly">Toutes les semaines</option>
-            <option value="monthly">Tous les mois</option>
-            <option value="yearly">Tous les ans</option>
-          </Select>
-        </Field>
-        {value.freq !== "none" ? (
-          <Field label="Jusqu'au (optionnel)">
-            <Input
-              type="date"
-              value={value.until ?? ""}
-              onChange={(e) => onChange({ ...value, until: e.target.value || undefined })}
-            />
-          </Field>
-        ) : null}
-      </div>
-      {value.freq === "weekly" ? (
-        <Field label="Jours de la semaine">
-          <div className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5, 6, 0].map((d) => {
-              const on = (value.byWeekday ?? []).includes(d);
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => toggleWeekday(d)}
-                  className="rounded-full px-3 py-2 text-sm font-semibold"
-                  style={{
-                    backgroundColor: on ? "var(--color-accent)" : "var(--color-surface-2)",
-                    color: on ? "var(--color-accent-fg)" : "var(--color-ink)",
-                  }}
-                >
-                  {weekdayLabel(d, true)}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-1.5 text-[11px] font-semibold text-muted">
-            Ex. Mar + Jeu pour le foot — uniquement ces jours apparaîtront.
-          </p>
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Répétition">
+        <Select
+          value={value.freq}
+          onChange={(e) =>
+            onChange({ ...value, freq: e.target.value as RecurrenceFreq })
+          }
+        >
+          <option value="none">Une seule fois</option>
+          <option value="daily">Tous les jours</option>
+          <option value="weekly">Toutes les semaines</option>
+          <option value="monthly">Tous les mois</option>
+          <option value="yearly">Tous les ans</option>
+        </Select>
+      </Field>
+      {value.freq !== "none" ? (
+        <Field label="Jusqu'au (optionnel)">
+          <Input
+            type="date"
+            value={value.until ?? ""}
+            onChange={(e) => onChange({ ...value, until: e.target.value || undefined })}
+          />
         </Field>
       ) : null}
     </div>
@@ -619,121 +551,27 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
   const updateActivity = useFamilyStore((s) => s.updateActivity);
   const removeActivity = useFamilyStore((s) => s.removeActivity);
   const existing = activities.find((a) => a.id === id);
-  const [draft, setDraft] = useState<Omit<Activity, "id">>(() => {
-    const weekdays = existing?.weekdays ?? [2, 4];
-    const daySlots: ActivityDaySlot[] =
-      existing?.daySlots?.length
-        ? existing.daySlots
-        : weekdays.map((d) => ({
-            dayOfWeek: d,
-            startTime: existing?.startTime ?? "18:00",
-            endTime: existing?.endTime ?? "19:30",
-          }));
-    return {
-      name: existing?.name ?? "",
-      memberIds: existing?.memberIds ?? [],
-      weekdays: daySlots.map((s) => s.dayOfWeek),
-      startTime: existing?.startTime ?? "18:00",
-      endTime: existing?.endTime ?? "19:30",
-      daySlots,
-      location: existing?.location ?? "",
-      contactName: existing?.contactName ?? "",
-      contactPhone: existing?.contactPhone ?? "",
-      notes: existing?.notes ?? "",
-      categoryId: existing?.categoryId ?? CAT.sport,
-      attachmentIds: existing?.attachmentIds ?? [],
-      photo: existing?.photo ?? null,
-    };
-  });
-  const photoRef = useRef<HTMLInputElement>(null);
-  const photoCameraRef = useRef<HTMLInputElement>(null);
-  const members = useFamilyStore((s) => s.members);
-  const [photoBusy, setPhotoBusy] = useState(false);
+  const [draft, setDraft] = useState<Omit<Activity, "id">>(() => ({
+    name: existing?.name ?? "",
+    memberIds: existing?.memberIds ?? [],
+    weekdays: existing?.weekdays ?? [3],
+    startTime: existing?.startTime ?? "15:00",
+    endTime: existing?.endTime ?? "17:00",
+    location: existing?.location ?? "",
+    contactName: existing?.contactName ?? "",
+    contactPhone: existing?.contactPhone ?? "",
+    notes: existing?.notes ?? "",
+    categoryId: existing?.categoryId ?? CAT.sport,
+    attachmentIds: existing?.attachmentIds ?? [],
+  }));
 
   function toggleDay(d: number) {
-    setDraft((prev) => {
-      const slots = prev.daySlots ?? [];
-      const has = slots.some((s) => s.dayOfWeek === d);
-      const daySlots = has
-        ? slots.filter((s) => s.dayOfWeek !== d)
-        : [
-            ...slots,
-            {
-              dayOfWeek: d,
-              startTime: prev.startTime || "18:00",
-              endTime: prev.endTime || "19:30",
-            },
-          ].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
-      return {
-        ...prev,
-        daySlots,
-        weekdays: daySlots.map((s) => s.dayOfWeek),
-      };
-    });
-  }
-
-  function setDayTime(d: number, field: "startTime" | "endTime", value: string) {
-    setDraft((prev) => {
-      const slots = [...(prev.daySlots ?? [])];
-      const i = slots.findIndex((s) => s.dayOfWeek === d);
-      if (i < 0) return prev;
-      slots[i] = { ...slots[i], [field]: value };
-      return { ...prev, daySlots: slots };
-    });
-  }
-
-  async function applyPhoto(file: File) {
-    setPhotoBusy(true);
-    try {
-      const dataUrl = await fileToStoredDataUrl(file);
-      setDraft((d) => ({ ...d, photo: dataUrl }));
-      toast.message("Photo ajoutée — analyse des horaires…");
-      try {
-        const ai = await parseScheduleWithAi({
-          imageDataUrl: await imageDataUrlForAi(dataUrl),
-        });
-        if (ai.ok && ai.slots.length) {
-          // Regroupe par jour : plus tôt / plus tard
-          const byDay = new Map<number, { startTime: string; endTime: string }>();
-          for (const s of ai.slots) {
-            const d = s.dayOfWeek;
-            if (d < 0 || d > 6) continue;
-            const cur = byDay.get(d);
-            if (!cur) {
-              byDay.set(d, { startTime: s.startTime, endTime: s.endTime });
-            } else {
-              if (s.startTime < cur.startTime) cur.startTime = s.startTime;
-              if (s.endTime > cur.endTime) cur.endTime = s.endTime;
-            }
-          }
-          if (byDay.size) {
-            const daySlots = [...byDay.entries()]
-              .map(([dayOfWeek, t]) => ({ dayOfWeek, ...t }))
-              .sort((a, b) => a.dayOfWeek - b.dayOfWeek);
-            setDraft((d) => ({
-              ...d,
-              photo: dataUrl,
-              daySlots,
-              weekdays: daySlots.map((x) => x.dayOfWeek),
-              startTime: daySlots[0].startTime,
-              endTime: daySlots[0].endTime,
-              name: d.name.trim() || "Sport",
-            }));
-            toast.success(
-              `Horaires détectés sur ${daySlots.length} jour${daySlots.length > 1 ? "s" : ""} — vérifiez et enregistrez`,
-            );
-            return;
-          }
-        }
-      } catch {
-        // analyse optionnelle
-      }
-      toast.success("Photo OK — réglez les jours et horaires puis enregistrez");
-    } catch {
-      toast.error("Photo illisible");
-    } finally {
-      setPhotoBusy(false);
-    }
+    setDraft((prev) => ({
+      ...prev,
+      weekdays: prev.weekdays.includes(d)
+        ? prev.weekdays.filter((x) => x !== d)
+        : [...prev.weekdays, d],
+    }));
   }
 
   function save() {
@@ -741,43 +579,10 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
       toast.error("Nommez l'activité");
       return;
     }
-    const daySlots = (draft.daySlots ?? []).filter((s) => s.startTime && s.endTime);
-    if (!daySlots.length) {
-      toast.error("Activez au moins un jour (ex. Lun) et ses horaires");
-      return;
-    }
-    // Si personne coché → tous les enfants / tous les membres
-    let memberIds = draft.memberIds;
-    if (!memberIds.length) {
-      const kids = members.filter((m) => m.role === "enfant");
-      memberIds = (kids.length ? kids : members).map((m) => m.id);
-    }
-    if (!memberIds.length) {
-      toast.error("Ajoutez d'abord un membre dans Famille");
-      return;
-    }
-    const payload = {
-      ...draft,
-      name: draft.name.trim(),
-      memberIds,
-      daySlots,
-      weekdays: daySlots.map((s) => s.dayOfWeek),
-      startTime: daySlots[0]?.startTime || "18:00",
-      endTime: daySlots[0]?.endTime || "19:30",
-      photo: draft.photo ?? null,
-    };
-    try {
-      if (existing) updateActivity(existing.id, payload);
-      else addActivity(payload);
-      toast.success(
-        existing
-          ? "Activité mise à jour"
-          : "Activité enregistrée — visible dans l'agenda",
-      );
-      onClose();
-    } catch {
-      toast.error("Enregistrement impossible — retirez la photo et réessayez");
-    }
+    if (existing) updateActivity(existing.id, draft);
+    else addActivity(draft);
+    toast.success(existing ? "Activité mise à jour" : "Activité créée — elle apparaît dans le calendrier");
+    onClose();
   }
 
   return (
@@ -800,10 +605,10 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
               Supprimer
             </Button>
           ) : null}
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose}>
             Annuler
           </Button>
-          <Button type="button" onClick={save}>Enregistrer</Button>
+          <Button onClick={save}>Enregistrer</Button>
         </>
       }
     >
@@ -822,56 +627,44 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
             multiple
           />
         </Field>
-        <Field label="Jours & horaires (chaque jour peut être différent)">
-          <p className="mb-2 text-[11px] font-semibold text-muted">
-            Cochez un jour, puis réglez son heure. Ex. Lun 18h00 · Mar 17h30 · Jeu 18h00
-          </p>
-          <div className="flex flex-col gap-2">
-            {[1, 2, 3, 4, 5, 6, 0].map((d) => {
-              const slot = (draft.daySlots ?? []).find((s) => s.dayOfWeek === d);
-              const on = Boolean(slot);
-              return (
-                <div
-                  key={d}
-                  className="rounded-2xl px-3 py-2.5"
-                  style={{
-                    backgroundColor: on ? "var(--color-accent)" : "var(--color-surface-2)",
-                    color: on ? "var(--color-accent-fg)" : "var(--color-ink)",
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleDay(d)}
-                      className="min-w-[3.2rem] rounded-full bg-white/25 px-2.5 py-1 text-sm font-extrabold"
-                    >
-                      {weekdayLabel(d, true)}
-                    </button>
-                    {on && slot ? (
-                      <div className="flex flex-1 flex-wrap items-center gap-2">
-                        <Input
-                          type="time"
-                          value={slot.startTime}
-                          onChange={(e) => setDayTime(d, "startTime", e.target.value)}
-                          className="max-w-[7.5rem] bg-white text-ink"
-                        />
-                        <span className="text-xs font-bold opacity-80">→</span>
-                        <Input
-                          type="time"
-                          value={slot.endTime}
-                          onChange={(e) => setDayTime(d, "endTime", e.target.value)}
-                          className="max-w-[7.5rem] bg-white text-ink"
-                        />
-                      </div>
-                    ) : (
-                      <span className="text-xs font-semibold opacity-70">Appuyer pour activer</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        <Field label="Jours">
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => toggleDay(d)}
+                className="rounded-full px-3 py-2 text-sm font-semibold"
+                style={{
+                  backgroundColor: draft.weekdays.includes(d)
+                    ? "var(--color-accent)"
+                    : "var(--color-surface-2)",
+                  color: draft.weekdays.includes(d)
+                    ? "var(--color-accent-fg)"
+                    : "var(--color-ink)",
+                }}
+              >
+                {weekdayLabel(d, true)}
+              </button>
+            ))}
           </div>
         </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Début">
+            <Input
+              type="time"
+              value={draft.startTime}
+              onChange={(e) => setDraft({ ...draft, startTime: e.target.value })}
+            />
+          </Field>
+          <Field label="Fin">
+            <Input
+              type="time"
+              value={draft.endTime}
+              onChange={(e) => setDraft({ ...draft, endTime: e.target.value })}
+            />
+          </Field>
+        </div>
         <Field label="Lieu">
           <Input
             value={draft.location}
@@ -893,61 +686,6 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
             />
           </Field>
         </div>
-        <Field label="Photo (optionnel)">
-          <input
-            ref={photoRef}
-            type="file"
-            accept="image/*,image/jpeg,image/png,image/webp,image/heic"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) void applyPhoto(f);
-            }}
-          />
-          <input
-            ref={photoCameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) void applyPhoto(f);
-            }}
-          />
-          {draft.photo ? (
-            <div className="space-y-2">
-              <img src={draft.photo} alt="" className="max-h-40 w-full rounded-xl object-contain bg-surface-2" />
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => photoCameraRef.current?.click()}>
-                  📷 Prendre
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => photoRef.current?.click()}>
-                  🖼️ Galerie
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setDraft((d) => ({ ...d, photo: null }))}>
-                  Retirer
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant="outline" disabled={photoBusy} onClick={() => photoCameraRef.current?.click()}>
-                  📷 Prendre une photo
-                </Button>
-                <Button type="button" variant="outline" disabled={photoBusy} onClick={() => photoRef.current?.click()}>
-                  🖼️ Choisir dans la galerie
-                </Button>
-              </div>
-              {photoBusy ? (
-                <p className="text-xs font-semibold text-muted">Analyse de la photo…</p>
-              ) : null}
-            </>
-          )}
-        </Field>
         <Field label="Notes">
           <Textarea
             value={draft.notes}
@@ -1387,20 +1125,15 @@ function ScheduleForm({
 }) {
   const schedules = useFamilyStore((s) => s.schedules);
   const members = useFamilyStore((s) => s.members);
-  const addSchedule = useFamilyStore((s) => s.addSchedule);
-  const updateSchedule = useFamilyStore((s) => s.updateSchedule);
+  const upsertScheduleForMember = useFamilyStore((s) => s.upsertScheduleForMember);
   const removeSchedule = useFamilyStore((s) => s.removeSchedule);
   const existing = schedules.find((s) => s.id === id);
-  const [name, setName] = useState(existing?.name ?? "Emploi du temps");
   const [owner, setOwner] = useState(existing?.memberId ?? memberId ?? members[0]?.id ?? "");
-  const [weekPattern, setWeekPattern] = useState<"single" | "ab">(existing?.weekPattern ?? "single");
+  const [name, setName] = useState(
+    existing?.name ?? defaultPlanningName(members.find((m) => m.id === owner)?.role),
+  );
+  const [nameTouched, setNameTouched] = useState(Boolean(existing?.name));
   const [slots, setSlots] = useState<ScheduleSlot[]>(existing?.slots ?? []);
-  const [slotsB, setSlotsB] = useState<ScheduleSlot[]>(existing?.slotsB ?? []);
-  const [activeWeek, setActiveWeek] = useState<"A" | "B">("A");
-  const [aIsCurrentWeek, setAIsCurrentWeek] = useState(true);
-  const [photo, setPhoto] = useState<string | null>(existing?.photo ?? null);
-  const schedulePhotoRef = useRef<HTMLInputElement>(null);
-  const scheduleCameraRef = useRef<HTMLInputElement>(null);
   const [day, setDay] = useState(1);
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
@@ -1408,65 +1141,58 @@ function ScheduleForm({
   const [room, setRoom] = useState("");
   const [teacher, setTeacher] = useState("");
 
+  useEffect(() => {
+    if (nameTouched) return;
+    setName(defaultPlanningName(members.find((m) => m.id === owner)?.role));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [owner]);
+
   function addSlot() {
     if (!subject.trim()) {
       toast.error("Indiquez la matière");
       return;
     }
-    const newSlot: ScheduleSlot = {
-      id: uid("slot"),
-      dayOfWeek: day,
-      startTime,
-      endTime,
-      subject: subject.trim(),
-      room,
-      teacher,
-    };
-    if (weekPattern === "ab" && activeWeek === "B") {
-      setSlotsB((s) => [...s, newSlot]);
-    } else {
-      setSlots((s) => [...s, newSlot]);
-    }
+    setSlots((s) => [
+      ...s,
+      {
+        id: uid("slot"),
+        dayOfWeek: day,
+        startTime,
+        endTime,
+        subject: subject.trim(),
+        room,
+        teacher,
+      },
+    ]);
     setSubject("");
   }
 
   function save() {
-    const currentMonday = toISODate(startOfWeek(new Date(), { weekStartsOn: 1 }));
-    const referenceWeekStart =
-      weekPattern === "ab"
-        ? aIsCurrentWeek
-          ? currentMonday
-          : toISODate(new Date(new Date(currentMonday).getTime() - 7 * 24 * 60 * 60 * 1000))
-        : undefined;
-    const payload: Omit<Schedule, "id"> = {
+    const keepExisting = Boolean(existing && existing.memberId === owner);
+    // upsertScheduleForMember remplace le planning existant de ce membre
+    // (au lieu d'en empiler un nouveau) — même comportement que l'import,
+    // pour éviter les doublons quand on modifie "à la main".
+    upsertScheduleForMember({
+      id: keepExisting ? existing!.id : undefined,
       memberId: owner,
-      name,
+      name: (name.trim() || defaultPlanningName(members.find((m) => m.id === owner)?.role)).trim(),
       slots,
-      photo,
-      weekPattern,
-      slotsB: weekPattern === "ab" ? slotsB : undefined,
-      referenceWeekStart,
-      weekOverrides: existing?.weekOverrides,
-    };
-    if (existing) updateSchedule(existing.id, payload);
-    else addSchedule(payload);
+      photo: keepExisting ? (existing!.photo ?? null) : null,
+    });
     toast.success("Planning enregistré — les cours apparaissent dans le calendrier");
     onClose();
   }
 
-  const activeSlots = weekPattern === "ab" && activeWeek === "B" ? slotsB : slots;
-  const setActiveSlots = weekPattern === "ab" && activeWeek === "B" ? setSlotsB : setSlots;
-
   const grouped = useMemo(() => {
     const g: Record<number, ScheduleSlot[]> = {};
-    for (const slot of activeSlots) {
+    for (const slot of slots) {
       (g[slot.dayOfWeek] ??= []).push(slot);
     }
     for (const k of Object.keys(g)) {
       g[Number(k)].sort((a, b) => a.startTime.localeCompare(b.startTime));
     }
     return g;
-  }, [activeSlots]);
+  }, [slots]);
 
   return (
     <Modal
@@ -1498,9 +1224,15 @@ function ScheduleForm({
       <div className="flex flex-col gap-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Nom">
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameTouched(true);
+              }}
+            />
           </Field>
-          <Field label="Élève / Personne">
+          <Field label="Pour qui">
             <Select value={owner} onChange={(e) => setOwner(e.target.value)}>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -1511,117 +1243,7 @@ function ScheduleForm({
           </Field>
         </div>
         <div className="rounded-2xl bg-surface-2 p-3">
-          <label className="flex items-center gap-2 text-sm font-bold">
-            <input
-              type="checkbox"
-              checked={weekPattern === "ab"}
-              onChange={(e) => {
-                setWeekPattern(e.target.checked ? "ab" : "single");
-                setActiveWeek("A");
-              }}
-            />
-            Alterner Semaine A / Semaine B (horaires qui changent une semaine sur deux)
-          </label>
-          {weekPattern === "ab" ? (
-            <div className="mt-3 flex flex-col gap-3">
-              <label className="flex items-center gap-2 text-xs font-semibold text-muted">
-                <input
-                  type="checkbox"
-                  checked={aIsCurrentWeek}
-                  onChange={(e) => setAIsCurrentWeek(e.target.checked)}
-                />
-                La semaine en cours (aujourd'hui) est la Semaine A
-              </label>
-              <div className="flex rounded-full bg-surface p-1">
-                {(["A", "B"] as const).map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    onClick={() => setActiveWeek(w)}
-                    className={
-                      activeWeek === w
-                        ? "h-9 flex-1 rounded-full bg-ink text-sm font-extrabold text-surface"
-                        : "h-9 flex-1 rounded-full text-sm font-extrabold text-muted"
-                    }
-                  >
-                    Semaine {w}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs font-semibold text-muted">
-                Tu édites les horaires de la <strong>Semaine {activeWeek}</strong> ci-dessous. En cas de
-                changement ponctuel une semaine donnée, modifie directement cette semaine-là depuis le
-                calendrier.
-              </p>
-            </div>
-          ) : null}
-        </div>
-        <Field label="Photo du planning">
-          <input
-            ref={schedulePhotoRef}
-            type="file"
-            accept="image/*,image/jpeg,image/png,image/webp,image/heic"
-            className="hidden"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              try {
-                const dataUrl = await fileToStoredDataUrl(f);
-                setPhoto(dataUrl);
-                toast.success("Photo de la galerie ajoutée — modifiez les horaires si besoin");
-              } catch {
-                toast.error("Photo illisible");
-              }
-              e.target.value = "";
-            }}
-          />
-          <input
-            ref={scheduleCameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              try {
-                const dataUrl = await fileToStoredDataUrl(f);
-                setPhoto(dataUrl);
-                toast.success("Photo prise — modifiez les horaires si besoin");
-              } catch {
-                toast.error("Photo illisible");
-              }
-              e.target.value = "";
-            }}
-          />
-          {photo ? (
-            <div className="space-y-2">
-              <img src={photo} alt="" className="max-h-48 w-full rounded-xl object-contain bg-surface-2" />
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => scheduleCameraRef.current?.click()}>
-                  📷 Prendre
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => schedulePhotoRef.current?.click()}>
-                  🖼️ Galerie
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setPhoto(null)}>
-                  Retirer
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant="outline" onClick={() => scheduleCameraRef.current?.click()}>
-                📷 Prendre une photo
-              </Button>
-              <Button type="button" variant="outline" onClick={() => schedulePhotoRef.current?.click()}>
-                🖼️ Choisir dans la galerie
-              </Button>
-            </div>
-          )}
-        </Field>
-        <div className="rounded-2xl bg-surface-2 p-3">
-          <p className="mb-2 text-sm font-semibold">Horaires (modifiables à la main)</p>
+          <p className="mb-2 text-sm font-semibold">Ajouter un créneau</p>
           <div className="grid gap-2 sm:grid-cols-3">
             <Select value={String(day)} onChange={(e) => setDay(Number(e.target.value))}>
               {[1, 2, 3, 4, 5, 6].map((d) => (
@@ -1671,7 +1293,7 @@ function ScheduleForm({
                       <button
                         type="button"
                         className="text-danger text-xs font-bold"
-                        onClick={() => setActiveSlots((s) => s.filter((x) => x.id !== slot.id))}
+                        onClick={() => setSlots((s) => s.filter((x) => x.id !== slot.id))}
                       >
                         Retirer
                       </button>
@@ -1696,7 +1318,7 @@ function QuickMenu({ onClose }: { onClose: () => void }) {
     { type: "note" as const, label: "Message", hint: "Écrire dans le chat famille", color: "turquoise" },
     { type: "member" as const, label: "Membre", hint: "Ajouter quelqu'un", color: "rose" },
     { type: "activity" as const, label: "Activité", hint: "Sport ou loisir récurrent", color: "orange" },
-    { type: "schedule" as const, label: "Planning (école/travail)", hint: "Emploi du temps, semaine A/B…", color: "jaune" },
+    { type: "schedule" as const, label: "Planning scolaire", hint: "Emploi du temps", color: "jaune" },
     { type: "import-schedule" as const, label: "Importer un planning", hint: "Photo ou copier-coller", color: "corail" },
   ];
   return (
@@ -1715,11 +1337,11 @@ function QuickMenu({ onClose }: { onClose: () => void }) {
               open({ type: item.type });
             }}
             className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-left tap"
-            style={{ backgroundColor: memberTone(item.color, "soft") }}
+            style={{ backgroundColor: `var(--color-member-${item.color}-soft)` }}
           >
             <span
               className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/80 text-sm font-black"
-              style={{ color: memberTone(item.color) }}
+              style={{ color: `var(--color-member-${item.color})` }}
             >
               +
             </span>

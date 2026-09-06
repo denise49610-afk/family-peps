@@ -26,6 +26,7 @@ import {
   toScheduleSlots,
   type LooseSlot,
 } from "@/lib/family/parse-schedule";
+import { defaultPlanningName } from "@/lib/family/schedule-name";
 import { useFamilyStore } from "@/lib/family/store";
 import type { ScheduleSlot } from "@/lib/family/types";
 import { cn, uid } from "@/lib/utils";
@@ -123,12 +124,13 @@ export function ImportScheduleForm({
   const [busyLabel, setBusyLabel] = useState("");
   const [source, setSource] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
-  const [photoMode, setPhotoMode] = useState(false); // photo seule + heures école
-  const [schoolStart, setSchoolStart] = useState("08:30");
-  const [schoolEnd, setSchoolEnd] = useState("16:30");
-  const [schoolDays, setSchoolDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [dragging, setDragging] = useState(false);
-  const [name, setName] = useState("Emploi du temps");
+  const [name, setName] = useState(() => {
+    const initialOwner = memberId ?? members.find((m) => m.role === "enfant")?.id ?? members[0]?.id;
+    const existingForOwner = schedules.find((s) => s.memberId === initialOwner);
+    return existingForOwner?.name || defaultPlanningName(members.find((m) => m.id === initialOwner)?.role);
+  });
+  const [nameTouched, setNameTouched] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -138,6 +140,13 @@ export function ImportScheduleForm({
 
   const ownerMember = members.find((m) => m.id === owner);
   const existing = schedules.find((s) => s.memberId === owner);
+
+  useEffect(() => {
+    if (nameTouched) return;
+    setName(existing?.name || defaultPlanningName(ownerMember?.role));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [owner]);
+
   const liveDraft = useMemo(
     () => (text.trim().length > 8 ? parseScheduleText(text) : { slots: [] as LooseSlot[], needsDay: false }),
     [text],
@@ -235,16 +244,11 @@ export function ImportScheduleForm({
         );
         return;
       }
-      toast.message(
-        "Pas d'horaires auto — indiquez début et fin d'école, puis confirmez.",
+      toast.error(
+        "Rien détecté. Collez le tableau (Horaire / Cours / Prof), ou une photo nette.",
       );
-    } catch {
-      // Pas de message technique (quota, API…) — on continue en mode manuel
-      if (preview || opts.imageDataUrl) {
-        toast.message("Photo OK — indiquez les heures d'école puis confirmez");
-      } else {
-        toast.message("Saisissez les heures à la main, ou réessayez plus tard");
-      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Analyse impossible");
     } finally {
       setBusy(false);
       setBusyLabel("");
@@ -262,31 +266,7 @@ export function ImportScheduleForm({
       if (await sniffIsImage(file)) {
         imageDataUrl = await fileToStoredDataUrl(file);
         setPreview(imageDataUrl);
-        setPhotoMode(true);
-        setSlots(null);
-        setPending(null);
-        setBusyLabel("Lecture des horaires sur la photo…");
         toast.message("Lecture de la photo…");
-        try {
-          const ai = await parseScheduleWithAi({ imageDataUrl: await imageDataUrlForAi(imageDataUrl) });
-          if (ai.ok && ai.slots.length) {
-            const starts = ai.slots.map((s) => s.startTime).filter(Boolean).sort();
-            const ends = ai.slots.map((s) => s.endTime).filter(Boolean).sort();
-            if (starts[0]) setSchoolStart(starts[0]);
-            if (ends.length) setSchoolEnd(ends[ends.length - 1]);
-            // Jours détectés sur la photo
-            const days = [...new Set(ai.slots.map((s) => s.dayOfWeek).filter((d) => d >= 0 && d <= 6))];
-            if (days.length) setSchoolDays(days.sort((a, b) => a - b));
-            toast.success(
-              `Horaires détectés : ${starts[0] || "?"} → ${ends[ends.length - 1] || "?"} — confirmez`,
-            );
-          } else {
-            toast.success("Photo prête — vérifiez les heures puis confirmez");
-          }
-        } catch {
-          toast.success("Photo prête — vérifiez les heures puis confirmez");
-        }
-        return;
       } else if (isPdf) {
         extracted = extractPdfStrings(await file.arrayBuffer());
         if (extracted) setText(extracted);
@@ -312,8 +292,8 @@ export function ImportScheduleForm({
         label: imageDataUrl ? "Photo" : "Fichier",
         merge,
       });
-    } catch {
-      toast.message("Fichier non lu — réessayez ou saisissez les heures à la main");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Fichier illisible");
     } finally {
       setBusy(false);
       setBusyLabel("");
@@ -432,71 +412,9 @@ export function ImportScheduleForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function buildSchoolDaySlots(): ScheduleSlot[] {
-    return schoolDays.map((d) => ({
-      id: uid("slot"),
-      dayOfWeek: d,
-      startTime: schoolStart,
-      endTime: schoolEnd,
-      subject: "École",
-      room: "",
-      teacher: "",
-    }));
-  }
-
-  /** Photo + horaires début/fin uniquement — pas tous les cours dans le planning. */
-  function confirmPhotoSimple() {
-    const memberId = owner || members.find((m) => m.role === "enfant")?.id || members[0]?.id || "";
-    if (!memberId) {
-      toast.error("Ajoutez d'abord un membre (élève) dans la famille");
-      return;
-    }
-    if (!preview) {
-      toast.error("Ajoutez une photo du planning");
-      return;
-    }
-    const days = schoolDays.length ? schoolDays : [1, 2, 3, 4, 5];
-    const start = schoolStart || "08:30";
-    const end = schoolEnd || "16:30";
-    const member = members.find((m) => m.id === memberId);
-    const daySlots = days.map((d) => ({
-      id: uid("slot"),
-      dayOfWeek: d,
-      startTime: start,
-      endTime: end,
-      subject: "École",
-      room: "",
-      teacher: "",
-    }));
-    try {
-      upsertScheduleForMember({
-        memberId,
-        name: (name.trim() || `École — ${member?.firstName ?? ""}`).trim(),
-        slots: daySlots,
-        photo: preview,
-      });
-      toast.success(
-        `Enregistré pour ${member?.firstName ?? "l'élève"} · ${start}–${end}`,
-      );
-      onClose();
-    } catch (err) {
-      toast.error("Enregistrement impossible — réessayez");
-    }
-  }
-
   function confirm() {
-    // Mode photo simple : heures d'école seulement
-    if (photoMode || (preview && (!slots || slots.length === 0))) {
-      confirmPhotoSimple();
-      return;
-    }
     const finalSlots = slots?.length ? slots : toScheduleSlots(liveDraft.slots);
     if (!finalSlots.length) {
-      // Fallback : si photo présente, enregistrer quand même avec heures école
-      if (preview) {
-        confirmPhotoSimple();
-        return;
-      }
       toast.error("Aucun créneau à importer");
       return;
     }
@@ -507,7 +425,7 @@ export function ImportScheduleForm({
     const member = members.find((m) => m.id === owner);
     upsertScheduleForMember({
       memberId: owner,
-      name: (name.trim() || `Planning — ${member?.firstName ?? ""}`).trim(),
+      name: (name.trim() || defaultPlanningName(member?.role)).trim(),
       slots: finalSlots,
       photo: preview,
     });
@@ -573,20 +491,11 @@ export function ImportScheduleForm({
     <Modal
       open
       onOpenChange={(o) => !o && onClose()}
-      title="Photo + horaires d’école"
-      description="1) Photo → 2) horaires détectés automatiquement → 3) vous pouvez tout modifier → 4) Confirmer."
+      title="Importer un planning"
+      description="Collez le tableau, ou prenez une photo — même un jour sans lundi/mardi."
       wide
       footer={
-        photoMode && preview ? (
-          <>
-            <Button variant="ghost" onClick={onClose}>
-              Annuler
-            </Button>
-            <Button onClick={confirmPhotoSimple} disabled={!owner}>
-              ✓ Confirmer la photo
-            </Button>
-          </>
-        ) : !photoMode && slots !== null ? (
+        slots !== null ? (
           <>
             <Button
               variant="ghost"
@@ -594,7 +503,6 @@ export function ImportScheduleForm({
                 setSlots(null);
                 setEditingId(null);
                 setPending(null);
-                setPhotoMode(Boolean(preview));
               }}
             >
               Revenir
@@ -602,7 +510,7 @@ export function ImportScheduleForm({
             <Button variant="outline" onClick={onClose}>
               Annuler
             </Button>
-            <Button onClick={confirm} disabled={!slots.length && !preview}>
+            <Button onClick={confirm} disabled={!slots.length}>
               Confirmer
             </Button>
           </>
@@ -637,32 +545,6 @@ export function ImportScheduleForm({
       }
     >
       <div className="flex flex-col gap-4">
-        {/* Inputs toujours montés : caméra + galerie */}
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="sr-only"
-          tabIndex={-1}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void analyzeFile(f);
-            e.target.value = "";
-          }}
-        />
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp"
-          className="sr-only"
-          tabIndex={-1}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void analyzeFile(f);
-            e.target.value = "";
-          }}
-        />
         {members.length === 0 ? (
           <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">
             Ajoutez d'abord un membre de la famille.
@@ -679,157 +561,16 @@ export function ImportScheduleForm({
           </Field>
         )}
 
-        {/* Mode photo simple : voir la photo + heures école, sans tous les cours */}
-        {photoMode && preview ? (
+        {slots !== null ? (
           <div className="flex flex-col gap-3">
-            <div className="sticky top-0 z-10 rounded-2xl border border-primary/25 bg-primary/10 p-3 shadow-sm">
-              <p className="text-sm font-extrabold text-ink">Photo du planning prête</p>
-              <p className="mt-0.5 text-xs font-semibold text-muted">
-                Horaires remplis automatiquement depuis la photo. Tout est modifiable avant de confirmer.
-              </p>
-              <Button
-                className="mt-2.5 w-full"
-                onClick={confirmPhotoSimple}
-                disabled={!owner || !schoolDays.length}
-              >
-                ✓ Confirmer — photo + heures d’école
-              </Button>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl bg-surface-2">
-              <img
-                src={preview}
-                alt="Planning scolaire"
-                className="max-h-72 w-full object-contain"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => cameraRef.current?.click()}>
-                📷 Reprendre
-              </Button>
-              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
-                🖼️ Autre image (galerie)
-              </Button>
-            </div>
-
-            <Field label="Nom">
+            <Field label="Nom du planning">
               <Input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="École — prénom"
-              />
-            </Field>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Début de journée">
-                <Input
-                  type="time"
-                  value={schoolStart}
-                  onChange={(e) => setSchoolStart(e.target.value)}
-                />
-              </Field>
-              <Field label="Fin de journée">
-                <Input
-                  type="time"
-                  value={schoolEnd}
-                  onChange={(e) => setSchoolEnd(e.target.value)}
-                />
-              </Field>
-            </div>
-
-            <Field label="Jours d’école">
-              <div className="flex flex-wrap gap-2">
-                {[1, 2, 3, 4, 5, 6].map((d) => {
-                  const on = schoolDays.includes(d);
-                  return (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() =>
-                        setSchoolDays((prev) =>
-                          on ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b),
-                        )
-                      }
-                      className="rounded-full px-3 py-2 text-sm font-semibold"
-                      style={{
-                        backgroundColor: on ? "var(--color-accent)" : "var(--color-surface-2)",
-                        color: on ? "var(--color-accent-fg)" : "var(--color-ink)",
-                      }}
-                    >
-                      {weekdayLabel(d, true)}
-                    </button>
-                  );
-                })}
-              </div>
-            </Field>
-
-            <p className="rounded-xl bg-surface-2 px-3 py-2 text-xs font-semibold text-muted">
-              Dans le calendrier famille : une seule plage « École {schoolStart}–{schoolEnd} »
-              par jour choisi — pas chaque matière.
-            </p>
-
-            <details className="rounded-2xl border border-line bg-surface p-3">
-              <summary className="cursor-pointer text-sm font-extrabold text-ink">
-                Option : détecter tous les cours (avancé)
-              </summary>
-              <p className="mt-2 text-xs font-semibold text-muted">
-                Utile seulement si vous voulez chaque matière dans la grille. Sinon, ignorez.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-2"
-                disabled={busy}
-                onClick={() => {
-                  setPhotoMode(false);
-                  void runAnalysis({
-                    imageDataUrl: preview,
-                    label: "Photo",
-                  });
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setNameTouched(true);
                 }}
-              >
-                <Sparkles className="size-4" />
-                Analyser les cours sur la photo
-              </Button>
-            </details>
-          </div>
-        ) : !photoMode && slots !== null ? (
-          <div className="flex flex-col gap-3">
-            {/* Confirmation directe — bien visible dès l'analyse photo */}
-            <div className="sticky top-0 z-10 -mx-1 rounded-2xl border border-primary/20 bg-primary/10 p-3 shadow-sm backdrop-blur">
-              <p className="text-sm font-extrabold text-ink">
-                {slots.length} cours détectés{source ? ` · ${source}` : ""}
-              </p>
-              <p className="mt-0.5 text-xs font-semibold text-muted">
-                Vérifiez rapidement, puis confirmez. Vous pouvez corriger un cours en le touchant.
-              </p>
-              <div className="mt-2.5 flex flex-wrap gap-2">
-                <Button
-                  onClick={confirm}
-                  disabled={!slots.length || !owner}
-                  className="flex-1 min-w-[10rem]"
-                >
-                  ✓ Confirmer et enregistrer
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setSlots(null);
-                    setEditingId(null);
-                    setPending(null);
-                  }}
-                >
-                  Recommencer
-                </Button>
-              </div>
-              {!owner ? (
-                <p className="mt-2 text-xs font-bold text-member-jaune-fg">
-                  Choisissez d’abord l’élève concerné en haut.
-                </p>
-              ) : null}
-            </div>
-            <Field label="Nom du planning">
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
+              />
             </Field>
             {existing ? (
               <p className="rounded-xl bg-member-jaune-soft px-3 py-2 text-xs font-bold text-member-jaune-fg">
@@ -939,6 +680,17 @@ export function ImportScheduleForm({
                 Ajouter un cours
               </Button>
             </div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,image/jpeg,image/png,image/webp,image/heic,application/pdf,.pdf,.txt,text/plain"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void analyzeFile(f, true);
+                e.target.value = "";
+              }}
+            />
           </div>
         ) : shownPending?.length ? (
           <div className="flex flex-col gap-3">
@@ -967,6 +719,29 @@ export function ImportScheduleForm({
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2">
+              <input
+                ref={cameraRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void analyzeFile(f);
+                  e.target.value = "";
+                }}
+              />
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,image/jpeg,image/png,image/webp,image/heic,application/pdf,.pdf,.txt,text/plain"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void analyzeFile(f);
+                  e.target.value = "";
+                }}
+              />
               <button
                 type="button"
                 onClick={() => cameraRef.current?.click()}
@@ -974,18 +749,18 @@ export function ImportScheduleForm({
                 className="flex min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-[1.35rem] bg-primary/10 px-3 py-3 text-primary tap"
               >
                 <Camera className="size-6" />
-                <span className="font-display text-sm font-extrabold">Prendre une photo</span>
-                <span className="text-[11px] font-semibold text-primary/80">Caméra</span>
+                <span className="font-display text-sm font-extrabold">Photo</span>
+                <span className="text-[11px] font-semibold text-primary/80">Appareil ou capture</span>
               </button>
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={busy}
-                className="flex min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-[1.35rem] bg-surface-2 px-3 py-3 text-ink tap ring-2 ring-primary/20"
+                className="flex min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-[1.35rem] bg-surface-2 px-3 py-3 text-ink tap"
               >
                 <ImagePlus className="size-6 text-primary" />
                 <span className="font-display text-sm font-extrabold">Galerie</span>
-                <span className="text-[11px] font-semibold text-muted">Choisir une image</span>
+                <span className="text-[11px] font-semibold text-muted">Image ou PDF</span>
               </button>
             </div>
 

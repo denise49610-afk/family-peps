@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { fileToStoredDataUrl } from "@/lib/family/files";
-import { ageOn, todayISO, weekdayLabel } from "@/lib/family/dates";
+import { ageOn, todayISO } from "@/lib/family/dates";
 import { expandRange } from "@/lib/family/expand";
 import { useFamilyStore } from "@/lib/family/store";
 import { normalizeHealth, normalizeSchool } from "@/lib/family/types";
@@ -219,8 +219,6 @@ function MemberPlanning({
   const store = useFamilyStore();
   const { open } = useEditors();
   const member = store.members.find((m) => m.id === memberId);
-  const isChild = member?.role === "enfant";
-  const memberActivities = store.activities.filter((a) => a.memberIds.includes(memberId));
   const own = store.schedules.filter((s) => s.memberId === memberId);
   const slots = own.flatMap((s) => s.slots);
   const photo = own.find((s) => s.photo)?.photo ?? null;
@@ -240,14 +238,9 @@ function MemberPlanning({
       <section className="rounded-[1.6rem] bg-surface p-4 card-shadow">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
-            <h2 className="font-display text-lg font-extrabold">
-              {isChild ? "Planning de l'école" : "Planning de travail"}
-            </h2>
+            <h2 className="font-display text-lg font-extrabold">Planning de l'école</h2>
             <p className="text-xs font-semibold text-muted">
-              {scheduleName ||
-                (isChild
-                  ? "Uniquement le planning de cette personne — pas le calendrier familial"
-                  : "Horaires de travail — pas le calendrier familial")}
+              {scheduleName || "Uniquement le planning de cette personne — pas le calendrier familial"}
             </p>
           </div>
         </div>
@@ -268,11 +261,7 @@ function MemberPlanning({
         <DayHoursStrip
           slots={slots}
           color={member?.color}
-          emptyHint={
-            isChild
-              ? "Pas encore de planning — importez une photo ou collez le tableau Pronote."
-              : "Pas encore de planning — ajoutez les horaires ou une photo du planning."
-          }
+          emptyHint="Pas encore de planning — importez une photo ou collez le tableau Pronote."
         />
 
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -304,48 +293,6 @@ function MemberPlanning({
             onClose={() => setOpenPhoto(false)}
           />
         ) : null}
-      </section>
-
-      <section className="rounded-[1.6rem] bg-surface p-4 card-shadow">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-extrabold">Sport &amp; activités</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => open({ type: "activity" })}
-          >
-            <Plus className="size-4" />
-            Ajouter
-          </Button>
-        </div>
-        {memberActivities.length === 0 ? (
-          <p className="text-sm font-semibold text-muted">
-            Aucune activité récurrente pour {member?.firstName ?? "cette personne"}.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {memberActivities.map((a) => (
-              <li key={a.id}>
-                <button
-                  type="button"
-                  onClick={() => open({ type: "activity", id: a.id })}
-                  className="flex w-full items-center justify-between gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-left"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-extrabold">{a.name}</p>
-                    <p className="text-xs font-semibold text-muted">
-                      {(a.daySlots?.length
-                        ? a.daySlots.map((s) => `${weekdayLabel(s.dayOfWeek, true)} ${s.startTime}`)
-                        : a.weekdays.map((d) => weekdayLabel(d, true))
-                      ).join(" · ")}
-                      {a.location ? ` · ${a.location}` : ""}
-                    </p>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       <section className="rounded-[1.6rem] bg-surface p-4 card-shadow">

@@ -25,7 +25,7 @@ export const Route = createRootRoute({
         content: "width=device-width, initial-scale=1, viewport-fit=cover",
       },
       { title: APP_NAME },
-      { name: "theme-color", content: "#F7F8FC" },
+      { name: "theme-color", content: "#F4EFE6" },
       {
         name: "description",
         content:
@@ -45,7 +45,7 @@ export const Route = createRootRoute({
       },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;600;700;800;900&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap",
       },
     ],
   }),

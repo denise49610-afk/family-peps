@@ -31,49 +31,40 @@ export function MemberAvatar({
   member,
   size = "md",
   className,
-  plain = false,
 }: {
   member: Pick<FamilyMember, "firstName" | "lastName" | "nickname" | "color" | "photo"> & {
     avatar?: string;
   };
   size?: keyof typeof SIZES;
   className?: string;
-  plain?: boolean;
 }) {
   const emoji = member.avatar?.trim();
-  const ring = plain ? 0 : size === "xl" || size === "lg" ? 3 : 2;
   return (
     <span
-      className={cn("relative inline-flex shrink-0 items-center justify-center", SIZES[size], className)}
+      className={cn(
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-bold ring-2 ring-white",
+        SIZES[size],
+        className,
+      )}
       style={{
-        padding: ring,
-        backgroundColor: plain ? "transparent" : memberTone(member.color),
-        borderRadius: 9999,
+        backgroundColor: member.photo ? undefined : memberTone(member.color, "soft"),
+        color: memberTone(member.color, "fg"),
+        boxShadow: emoji || member.photo ? `0 0 0 2px ${memberTone(member.color)}` : undefined,
       }}
     >
-      <span
-        className={cn(
-          "flex size-full items-center justify-center overflow-hidden rounded-full font-bold",
-        )}
-        style={{
-          backgroundColor: member.photo ? "var(--color-surface)" : memberTone(member.color, "soft"),
-          color: memberTone(member.color, "fg"),
-        }}
-      >
-        {member.photo ? (
-          <img
-            src={member.photo}
-            alt=""
-            className="size-full object-cover"
-          />
-        ) : emoji ? (
-          <span className={cn("leading-none", EMOJI_SIZES[size])} aria-hidden>
-            {emoji}
-          </span>
-        ) : (
-          <span style={{ color: memberTone(member.color) }}>{initialsOf(member)}</span>
-        )}
-      </span>
+      {member.photo ? (
+        <img
+          src={member.photo}
+          alt=""
+          className="size-full object-cover outline outline-1 -outline-offset-1 outline-ink/10"
+        />
+      ) : emoji ? (
+        <span className={cn("leading-none", EMOJI_SIZES[size])} aria-hidden>
+          {emoji}
+        </span>
+      ) : (
+        <span style={{ color: memberTone(member.color) }}>{initialsOf(member)}</span>
+      )}
     </span>
   );
 }

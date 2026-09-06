@@ -1,4 +1,4 @@
-import { addDays, getDay, startOfDay, startOfWeek } from "date-fns";
+import { addDays, getDay, startOfDay } from "date-fns";
 import { nextBirthday, recurrenceDates, toISODate } from "./dates";
 import type {
   Activity,
@@ -8,7 +8,6 @@ import type {
   FamilyState,
   Occurrence,
   Schedule,
-  ScheduleSlot,
 } from "./types";
 
 function eventColor(
@@ -94,22 +93,6 @@ export function expandRange(state: FamilyState, from: Date, to: Date): Occurrenc
   return occ;
 }
 
-/** Renvoie les créneaux applicables pour la semaine (lundi=mondayISO) d'un planning donné,
- *  en tenant compte des exceptions ponctuelles puis de l'alternance Semaine A / Semaine B. */
-function slotsForWeek(schedule: Schedule, mondayISO: string): ScheduleSlot[] {
-  if (schedule.weekOverrides?.[mondayISO]) return schedule.weekOverrides[mondayISO];
-  if (schedule.weekPattern === "ab" && schedule.slotsB) {
-    const refMonday = schedule.referenceWeekStart
-      ? startOfDay(new Date(schedule.referenceWeekStart))
-      : startOfDay(new Date(mondayISO));
-    const weeks = Math.round(
-      (startOfDay(new Date(mondayISO)).getTime() - refMonday.getTime()) / (7 * 24 * 60 * 60 * 1000),
-    );
-    return weeks % 2 === 0 ? schedule.slots : schedule.slotsB;
-  }
-  return schedule.slots;
-}
-
 export function expandSchedule(
   schedule: Schedule,
   from: Date,
@@ -123,9 +106,7 @@ export function expandSchedule(
   while (cursor <= end) {
     const dow = getDay(cursor);
     const date = toISODate(cursor);
-    const mondayISO = toISODate(startOfWeek(cursor, { weekStartsOn: 1 }));
-    const activeSlots = slotsForWeek(schedule, mondayISO);
-    for (const slot of activeSlots) {
+    for (const slot of schedule.slots) {
       if (slot.dayOfWeek !== dow) continue;
       occ.push({
         id: `sch:${schedule.id}:${slot.id}:${date}`,
@@ -156,39 +137,22 @@ export function expandActivity(
   to: Date,
   members: FamilyMember[],
 ): Occurrence[] {
-  const dayMap = new Map<number, { startTime: string; endTime: string }>();
-  if (activity.daySlots?.length) {
-    for (const s of activity.daySlots) {
-      dayMap.set(s.dayOfWeek, { startTime: s.startTime, endTime: s.endTime });
-    }
-  } else if (activity.weekdays?.length) {
-    for (const d of activity.weekdays) {
-      dayMap.set(d, {
-        startTime: activity.startTime || "15:00",
-        endTime: activity.endTime || "17:00",
-      });
-    }
-  }
-  if (dayMap.size === 0) return [];
-
-  const excluded = new Set(activity.excludedDates ?? []);
   const first = members.find((m) => activity.memberIds.includes(m.id));
   const occ: Occurrence[] = [];
   let cursor = startOfDay(from);
   const end = startOfDay(to);
   while (cursor <= end) {
     const dow = getDay(cursor);
-    const slot = dayMap.get(dow);
-    const date = toISODate(cursor);
-    if (slot && !excluded.has(date)) {
+    if (activity.weekdays.includes(dow)) {
+      const date = toISODate(cursor);
       occ.push({
         id: `act:${activity.id}:${date}`,
         sourceType: "activity",
         sourceId: activity.id,
         title: activity.name,
         date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
+        startTime: activity.startTime,
+        endTime: activity.endTime,
         allDay: false,
         location: activity.location,
         description: activity.notes,

@@ -75,14 +75,12 @@ export const extractScheduleFn = createServerFn({ method: "POST" })
       input.imageDataUrl.startsWith("data:image/")
         ? input.imageDataUrl.slice(0, 2_400_000)
         : undefined;
-    // Ne pas throw : évite les messages d'erreur bruts côté client
+    if (!text.trim() && !imageDataUrl) {
+      throw new Error("empty");
+    }
     return { text, imageDataUrl };
   })
   .handler(async ({ data }): Promise<GrokOut> => {
-    try {
-    if (!data.text.trim() && !data.imageDataUrl) {
-      return { ok: false, error: "unavailable" };
-    }
     if (Date.now() < grokDisabledUntil) {
       return { ok: false, error: "unavailable" };
     }
@@ -143,8 +141,7 @@ export const extractScheduleFn = createServerFn({ method: "POST" })
           grokDisabledUntil = Date.now() + 15 * 60_000;
           return { ok: false, error: "unavailable" };
         }
-        // Ne jamais exposer quota / crédits / erreurs techniques à l'utilisateur
-        return { ok: false, error: "unavailable" };
+        return { ok: false, error: `xAI API error ${res.status}` };
       }
       const body = (await res.json()) as {
         choices?: { message?: { content?: string } }[];
@@ -156,11 +153,7 @@ export const extractScheduleFn = createServerFn({ method: "POST" })
     } catch (err) {
       const msg = err instanceof Error ? err.message : "ai-error";
       if (/timeout|abort/i.test(msg)) return { ok: false, error: "timeout" };
-      return { ok: false, error: "unavailable" };
-    }
-    } catch {
-      // Filet de sécurité : jamais d'exception quota / exceeded vers le client
-      return { ok: false, error: "unavailable" };
+      return { ok: false, error: msg };
     }
   });
 
@@ -212,7 +205,7 @@ export async function parseScheduleWithAi(input: {
           imageDataUrl: input.imageDataUrl,
         },
       });
-      if (ai && "ok" in ai && ai.ok && looksPlausible(ai.slots)) {
+      if (ai.ok && looksPlausible(ai.slots)) {
         return {
           ok: true,
           slots: ai.slots,
@@ -220,7 +213,7 @@ export async function parseScheduleWithAi(input: {
           rawText: text,
         };
       }
-      if (ai && "ok" in ai && ai.ok && ai.slots.length && local.length === 0) {
+      if (ai.ok && ai.slots.length && local.length === 0) {
         return {
           ok: true,
           slots: ai.slots,
@@ -228,9 +221,8 @@ export async function parseScheduleWithAi(input: {
           rawText: text,
         };
       }
-      // unavailable / quota / timeout → silencieux
     } catch {
-      // Jamais de message quota / exceeded à l'utilisateur
+      // IA optionnelle
     }
   }
 

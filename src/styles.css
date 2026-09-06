@@ -3,120 +3,51 @@
 @theme {
   --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Nunito", ui-sans-serif, system-ui, sans-serif;
-  --font-script: "Pacifico", "Segoe Script", cursive;
 
-  --color-bg: #f7f8fc;
-  --color-bg-deep: #eef0f7;
+  --color-bg: #f4efe6;
+  --color-bg-deep: #ebe4d6;
   --color-surface: #ffffff;
-  --color-surface-2: #f4f5fa;
-  --color-ink: #1c1d3a;
-  --color-muted: #8b8fa8;
-  --color-faint: #b4b8c8;
+  --color-surface-2: #f7f3ec;
+  --color-ink: #2a2430;
+  --color-muted: #8a8494;
+  --color-faint: #b4aeb8;
   --color-primary: #7c5cff;
   --color-primary-fg: #ffffff;
   --color-accent: #6fcf7a;
   --color-accent-fg: #14331a;
-  --color-line: #eceef5;
+  --color-line: #ece6dc;
   --color-ok: #6fcf7a;
   --color-warn: #f0b14a;
-  --color-danger: #ff4d62;
+  --color-danger: #ee7a86;
   --color-sun: #f5c97a;
   --color-zen-z: #6fcf7a;
   --color-zen-e: #f48fb1;
   --color-zen-n: #8b7cf7;
-  --color-badge: #ff4d62;
-
-  --color-tile-purple: #ede3ff;
-  --color-tile-purple-fg: #5b3cc4;
-  --color-tile-pink: #fde2ef;
-  --color-tile-pink-fg: #c44a80;
-  --color-tile-amber: #ffe7c2;
-  --color-tile-amber-fg: #b56a12;
-  --color-tile-mint: #d4f1ec;
-  --color-tile-mint-fg: #1d7a72;
-  --color-tile-lilac: #e7e3ff;
-  --color-tile-lilac-fg: #6b4fd4;
-  --color-remind-bg: #fff1f4;
-  --color-remind-fg: #e24b6a;
 
   --color-member-rose: #f48fb1;
   --color-member-rose-soft: #fde8f0;
   --color-member-rose-fg: #6b2744;
-  --color-member-corail: #f08a8a;
-  --color-member-corail-soft: #ffe8e8;
-  --color-member-corail-fg: #6b2424;
-  --color-member-rouge: #e85d5d;
-  --color-member-rouge-soft: #fde8e8;
-  --color-member-rouge-fg: #6b1c1c;
-  --color-member-peche: #f3a07c;
-  --color-member-peche-soft: #ffeee6;
-  --color-member-peche-fg: #6b3318;
-  --color-member-terracotta: #d07858;
-  --color-member-terracotta-soft: #f8ebe4;
-  --color-member-terracotta-fg: #5c2c1c;
-  --color-member-orange: #f5b37a;
-  --color-member-orange-soft: #fff0e2;
-  --color-member-orange-fg: #6b3a14;
-  --color-member-ambre: #e09a3e;
-  --color-member-ambre-soft: #fff3dc;
-  --color-member-ambre-fg: #5c3d0c;
-  --color-member-jaune: #f5c97a;
-  --color-member-jaune-soft: #fff6e3;
-  --color-member-jaune-fg: #5c4310;
-  --color-member-citron: #c9bc3a;
-  --color-member-citron-soft: #f7f5d4;
-  --color-member-citron-fg: #4a4510;
-  --color-member-menthe: #6ed0a5;
-  --color-member-menthe-soft: #e3f8ef;
-  --color-member-menthe-fg: #165238;
-  --color-member-vert: #7bc96f;
-  --color-member-vert-soft: #e7f7e4;
-  --color-member-vert-fg: #1d4a22;
-  --color-member-sapin: #3d9a6e;
-  --color-member-sapin-soft: #ddf3e8;
-  --color-member-sapin-fg: #0f3d2a;
-  --color-member-sauge: #8aaa78;
-  --color-member-sauge-soft: #eef4e8;
-  --color-member-sauge-fg: #334428;
-  --color-member-turquoise: #7ecfc0;
-  --color-member-turquoise-soft: #e4f7f3;
-  --color-member-turquoise-fg: #1b4a42;
-  --color-member-cyan: #5cc8e0;
-  --color-member-cyan-soft: #e0f6fb;
-  --color-member-cyan-fg: #164a56;
-  --color-member-ciel: #8ec8f0;
-  --color-member-ciel-soft: #e8f5fc;
-  --color-member-ciel-fg: #1c4560;
   --color-member-bleu: #7eb6f5;
   --color-member-bleu-soft: #e7f2fe;
   --color-member-bleu-fg: #1d3f6b;
-  --color-member-marine: #4a7cc8;
-  --color-member-marine-soft: #e4ecf8;
-  --color-member-marine-fg: #1a3258;
-  --color-member-indigo: #6b6fd4;
-  --color-member-indigo-soft: #e8e9fa;
-  --color-member-indigo-fg: #2a2c66;
+  --color-member-orange: #f5b37a;
+  --color-member-orange-soft: #fff0e2;
+  --color-member-orange-fg: #6b3a14;
   --color-member-violet: #b49af0;
   --color-member-violet-soft: #f1eaff;
   --color-member-violet-fg: #3d2a6b;
-  --color-member-lilas: #c9a0e8;
-  --color-member-lilas-soft: #f5eafc;
-  --color-member-lilas-fg: #4a2a66;
-  --color-member-lavande: #a89ad8;
-  --color-member-lavande-soft: #eeeaf8;
-  --color-member-lavande-fg: #32285c;
-  --color-member-fuchsia: #d96bb3;
-  --color-member-fuchsia-soft: #fbe8f4;
-  --color-member-fuchsia-fg: #5c2048;
-  --color-member-bordeaux: #b04a62;
-  --color-member-bordeaux-soft: #f8e4e8;
-  --color-member-bordeaux-fg: #4a1824;
-  --color-member-chocolat: #b07a52;
-  --color-member-chocolat-soft: #f4ebe3;
-  --color-member-chocolat-fg: #4a2e1c;
-  --color-member-taupe: #9a8b7a;
-  --color-member-taupe-soft: #f1ece6;
-  --color-member-taupe-fg: #3f352c;
+  --color-member-turquoise: #7ecfc0;
+  --color-member-turquoise-soft: #e4f7f3;
+  --color-member-turquoise-fg: #1b4a42;
+  --color-member-vert: #7bc96f;
+  --color-member-vert-soft: #e7f7e4;
+  --color-member-vert-fg: #1d4a22;
+  --color-member-jaune: #f5c97a;
+  --color-member-jaune-soft: #fff6e3;
+  --color-member-jaune-fg: #5c4310;
+  --color-member-corail: #f08a8a;
+  --color-member-corail-soft: #ffe8e8;
+  --color-member-corail-fg: #6b2424;
 
   --radius-sm: 12px;
   --radius-md: 18px;
@@ -124,10 +55,9 @@
   --radius-xl: 32px;
   --radius-2xl: 40px;
 
-  --shadow-card: 0 10px 28px -18px rgba(28, 29, 58, 0.22);
-  --shadow-card-hover: 0 14px 32px -16px rgba(28, 29, 58, 0.26);
+  --shadow-card: 0 8px 24px -16px rgba(42, 36, 48, 0.18);
+  --shadow-card-hover: 0 12px 28px -14px rgba(42, 36, 48, 0.22);
   --shadow-pop: 0 16px 36px -14px rgba(124, 92, 255, 0.45);
-  --shadow-nav: 0 12px 40px -12px rgba(28, 29, 58, 0.22);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -187,10 +117,6 @@
     font-family: var(--font-display);
   }
 
-  .font-script {
-    font-family: var(--font-script);
-  }
-
   .card-shadow {
     box-shadow: var(--shadow-card);
   }
@@ -229,32 +155,8 @@
 
   .nav-plus {
     box-shadow:
-      0 12px 28px -8px rgba(124, 92, 255, 0.55),
-      0 0 0 6px color-mix(in oklab, var(--color-primary) 14%, white);
-  }
-
-  .nav-dock {
-    box-shadow: var(--shadow-nav);
-  }
-
-  .chip-scroll {
-    display: flex;
-    gap: 0.7rem;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-snap-type: x proximity;
-    padding: 0.2rem 0.15rem 0.45rem;
-    margin-inline: -0.15rem;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  .chip-scroll::-webkit-scrollbar {
-    display: none;
-  }
-
-  .count-badge {
-    background: var(--color-badge);
-    color: #fff;
+      0 10px 24px -8px rgba(124, 92, 255, 0.55),
+      0 0 0 6px color-mix(in oklab, var(--color-primary) 12%, white);
   }
 }
 

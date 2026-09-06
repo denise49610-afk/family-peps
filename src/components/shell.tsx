@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { FamiZenWordmark, SparkBurst } from "@/components/brand";
+import { FamiZenWordmark } from "@/components/brand";
 import { useEditors } from "@/components/editors-context";
 import { useFamilyStore } from "@/lib/family/store";
 import { useHydrated } from "@/lib/family/use-hydrated";
@@ -26,7 +26,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon };
 
 const PRIMARY: NavItem[] = [
   { to: "/", label: "Accueil", icon: Home },
-  { to: "/calendrier", label: "Agenda", icon: CalendarDays },
+  { to: "/calendrier", label: "Planning", icon: CalendarDays },
   { to: "/taches", label: "Tâches", icon: CheckSquare },
   { to: "/notes", label: "Chat", icon: MessageCircle },
 ];
@@ -137,17 +137,17 @@ function ShellInner({ children }: { children?: ReactNode }) {
       <main className="lg:pl-60">
         <div
           className="mx-auto w-full max-w-[440px] px-4 pt-4 lg:max-w-3xl lg:px-8 lg:pt-8"
-          style={{ paddingBottom: "calc(6.4rem + env(safe-area-inset-bottom, 0px))" }}
+          style={{ paddingBottom: "calc(6.5rem + env(safe-area-inset-bottom, 0px))" }}
         >
           {children ?? <Outlet />}
         </div>
       </main>
 
       <nav
-        className="fixed inset-x-3 z-30 lg:hidden"
-        style={{ bottom: "max(0.7rem, env(safe-area-inset-bottom))" }}
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-3 pt-2 backdrop-blur-md lg:hidden"
+        style={{ paddingBottom: "max(0.6rem, env(safe-area-inset-bottom))" }}
       >
-        <ul className="nav-dock relative grid grid-cols-5 items-end rounded-[1.85rem] bg-surface px-1 pb-2 pt-2">
+        <ul className="grid grid-cols-5 items-end gap-1">
           {PRIMARY.slice(0, 2).map((item) => (
             <MobileTab
               key={item.to}
@@ -156,18 +156,15 @@ function ShellInner({ children }: { children?: ReactNode }) {
               badge={item.to === "/taches" ? pending : 0}
             />
           ))}
-          <li className="relative flex justify-center">
-            <span className="relative -mt-8">
-              <SparkBurst className="scale-125" />
-              <button
-                type="button"
-                aria-label="Créer"
-                onClick={() => open({ type: "quick" })}
-                className="nav-plus relative z-10 flex size-[3.7rem] items-center justify-center rounded-full bg-primary text-primary-fg tap"
-              >
-                <Plus className="size-7" strokeWidth={2.6} />
-              </button>
-            </span>
+          <li className="flex justify-center">
+            <button
+              type="button"
+              aria-label="Créer"
+              onClick={() => open({ type: "quick" })}
+              className="nav-plus mb-1 flex size-14 items-center justify-center rounded-full bg-primary text-primary-fg tap"
+            >
+              <Plus className="size-7" strokeWidth={2.6} />
+            </button>
           </li>
           {PRIMARY.slice(2).map((item) => (
             <MobileTab
@@ -208,7 +205,7 @@ function MobileTab({
         <span className="relative">
           <Icon className="size-5" strokeWidth={active ? 2.5 : 2} />
           {badge && badge > 0 ? (
-            <span className="count-badge absolute -right-2.5 -top-1.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-black">
+            <span className="absolute -right-2 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-black text-primary-fg">
               {badge > 9 ? "9+" : badge}
             </span>
           ) : null}
@@ -283,8 +280,6 @@ export function AppShell({ children }: { children?: ReactNode }) {
   if (!hydrated) return <Splash />;
   return <ShellInner>{children}</ShellInner>;
 }
-
-export const MORE_PAGES: NavItem[] = MORE;
 
 export function openMoreMenu() {
   if (typeof window !== "undefined") {

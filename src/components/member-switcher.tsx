@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { MemberAvatar } from "@/components/member-avatar";
-import { memberTone } from "@/components/brand";
 import { useFamilyStore } from "@/lib/family/store";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +17,7 @@ export function MemberSwitcher({
   const members = useFamilyStore((s) => s.members);
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex gap-2 overflow-x-auto pb-1">
       {allowAll ? (
         <button
           type="button"
@@ -36,28 +35,16 @@ export function MemberSwitcher({
         const inner = (
           <>
             <MemberAvatar member={m} size="xs" />
-            <span className="max-w-[7.5rem] truncate">{m.firstName}</span>
+            {m.firstName}
           </>
         );
         const cls = cn(
-          "tap flex h-11 max-w-full shrink-0 items-center gap-2 rounded-full py-1 pl-1.5 pr-3 text-sm font-extrabold",
-          active ? "text-ink" : "bg-surface text-ink card-shadow",
+          "tap flex h-11 shrink-0 items-center gap-2 rounded-full px-2.5 pr-3 text-sm font-extrabold",
+          active ? "bg-ink text-surface" : "bg-surface text-ink card-shadow",
         );
-        const style = active
-          ? {
-              backgroundColor: memberTone(m.color, "soft"),
-              boxShadow: `inset 0 0 0 2px ${memberTone(m.color)}`,
-            }
-          : undefined;
         if (onSelect) {
           return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => onSelect(m.id)}
-              className={cls}
-              style={style}
-            >
+            <button key={m.id} type="button" onClick={() => onSelect(m.id)} className={cls}>
               {inner}
             </button>
           );
@@ -68,7 +55,6 @@ export function MemberSwitcher({
             to="/membre/$memberId"
             params={{ memberId: m.id }}
             className={cls}
-            style={style}
           >
             {inner}
           </Link>

@@ -47,21 +47,6 @@ export function formatTime(hhmm: string): string {
   return `${Number(h)}h${m && m !== "00" ? m : ""}`;
 }
 
-/** Horloge type 08:30 — visuel accueil. */
-export function formatClock(hhmm: string): string {
-  if (!hhmm) return "";
-  const [h, m] = hhmm.split(":");
-  return `${String(Number(h)).padStart(2, "0")}:${(m ?? "00").padStart(2, "0")}`;
-}
-
-/** « Demain », « Lundi », « Aujourd'hui » */
-export function relativeDayLabel(dateISO: string, from = new Date()): string {
-  const days = daysUntil(parseDate(dateISO), from);
-  if (days === 0) return "Aujourd'hui";
-  if (days === 1) return "Demain";
-  return capitalize(format(parseDate(dateISO), "EEEE", { locale: fr }));
-}
-
 export function formatTimeRange(start: string, end: string, allDay?: boolean): string {
   if (allDay) return "Toute la journée";
   if (start && end) return `${formatTime(start)} – ${formatTime(end)}`;
@@ -163,34 +148,12 @@ export function recurrenceDates(
   const endBound = until < to ? until : to;
   const interval = Math.max(1, recurrence.interval || 1);
   const out: string[] = [];
-  const rangeStart = startOfDay(from);
-  const rangeEnd = startOfDay(endBound);
+  let cursor = start;
   let guard = 0;
 
-  // Weekly + plusieurs jours (ex. Mar + Jeu) : avancer jour par jour.
-  // Un saut de 7 jours ne touche qu'un seul jour de la semaine.
-  if (recurrence.freq === "weekly" && recurrence.byWeekday && recurrence.byWeekday.length > 0) {
-    let cursor = start < rangeStart ? rangeStart : start;
-    while (cursor <= rangeEnd && guard < 800) {
-      guard += 1;
-      if (cursor >= start && cursor >= rangeStart) {
-        const dow = getDay(cursor);
-        if (recurrence.byWeekday.includes(dow)) {
-          const weeksFromStart = Math.floor(differenceInCalendarDays(cursor, start) / 7);
-          if (weeksFromStart % interval === 0) {
-            out.push(toISODate(cursor));
-          }
-        }
-      }
-      cursor = addDays(cursor, 1);
-    }
-    return out;
-  }
-
-  let cursor = start;
   while (cursor <= endBound && guard < 800) {
     guard += 1;
-    if (cursor >= rangeStart && cursor <= rangeEnd) {
+    if (cursor >= startOfDay(from) && cursor <= startOfDay(endBound)) {
       const dow = getDay(cursor);
       if (!recurrence.byWeekday || recurrence.byWeekday.includes(dow)) {
         out.push(toISODate(cursor));

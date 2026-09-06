@@ -1,62 +1,15 @@
 export const MEMBER_COLORS = [
   "rose",
-  "corail",
-  "rouge",
-  "peche",
-  "terracotta",
-  "orange",
-  "ambre",
-  "jaune",
-  "citron",
-  "menthe",
-  "vert",
-  "sapin",
-  "sauge",
-  "turquoise",
-  "cyan",
-  "ciel",
   "bleu",
-  "marine",
-  "indigo",
+  "orange",
   "violet",
-  "lilas",
-  "lavande",
-  "fuchsia",
-  "bordeaux",
-  "chocolat",
-  "taupe",
+  "turquoise",
+  "vert",
+  "jaune",
+  "corail",
 ] as const;
 
 export type MemberColor = (typeof MEMBER_COLORS)[number];
-
-export const MEMBER_COLOR_LABELS: Record<MemberColor, string> = {
-  rose: "Rose",
-  corail: "Corail",
-  rouge: "Rouge",
-  peche: "Pêche",
-  terracotta: "Terre",
-  orange: "Orange",
-  ambre: "Ambre",
-  jaune: "Jaune",
-  citron: "Citron",
-  menthe: "Menthe",
-  vert: "Vert",
-  sapin: "Sapin",
-  sauge: "Sauge",
-  turquoise: "Turquoise",
-  cyan: "Cyan",
-  ciel: "Ciel",
-  bleu: "Bleu",
-  marine: "Marine",
-  indigo: "Indigo",
-  violet: "Violet",
-  lilas: "Lilas",
-  lavande: "Lavande",
-  fuchsia: "Fuchsia",
-  bordeaux: "Bordeaux",
-  chocolat: "Chocolat",
-  taupe: "Taupe",
-};
 
 export const MEMBER_ROLES = ["parent", "enfant", "autre"] as const;
 export type MemberRole = (typeof MEMBER_ROLES)[number];
@@ -150,8 +103,6 @@ export type FamilyEvent = {
   color: MemberColor | null;
   recurrence: Recurrence;
   attachmentIds: string[];
-  /** Photo optionnelle (convocation, billet…) */
-  photo?: string | null;
 };
 
 export type TaskPriority = "low" | "medium" | "high";
@@ -172,34 +123,19 @@ export type FamilyTask = {
   attachmentIds: string[];
 };
 
-/** Horaires d'une activité pour un jour précis (ex. Lun 18h, Mar 17h30). */
-export type ActivityDaySlot = {
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-};
-
 export type Activity = {
   id: string;
   name: string;
   memberIds: string[];
-  /** Jours où l'activité a lieu (dérivé de daySlots si présent). */
   weekdays: number[];
-  /** Horaires par défaut (si un jour n'a pas d'entrée dans daySlots). */
   startTime: string;
   endTime: string;
-  /** Horaires par jour — permet Lun ≠ Mar ≠ Mer. */
-  daySlots?: ActivityDaySlot[];
   location: string;
   contactName: string;
   contactPhone: string;
   notes: string;
   categoryId: string;
   attachmentIds: string[];
-  /** Photo optionnelle (planning club, flyer…) */
-  photo?: string | null;
-  /** Dates (ISO) où cette occurrence récurrente est annulée/pas suivie (ex. JJB certains jours). */
-  excludedDates?: string[];
 };
 
 export type ScheduleSlot = {
@@ -216,18 +152,9 @@ export type Schedule = {
   id: string;
   memberId: string;
   name: string;
-  /** Semaine A (ou planning unique si pas d'alternance A/B). */
   slots: ScheduleSlot[];
   /** Photo d'origine de l'emploi du temps (data URL ou asset:id). */
   photo?: string | null;
-  /** "single" (par défaut) ou "ab" pour alterner deux semaines type. */
-  weekPattern?: "single" | "ab";
-  /** Semaine B — utilisée seulement si weekPattern === "ab". */
-  slotsB?: ScheduleSlot[];
-  /** Lundi (ISO) d'une semaine connue comme étant la Semaine A — sert de référence pour l'alternance. */
-  referenceWeekStart?: string;
-  /** Exceptions ponctuelles : lundi (ISO) de la semaine → créneaux propres à cette semaine-là uniquement. */
-  weekOverrides?: Record<string, ScheduleSlot[]>;
 };
 
 export type FamilyDocument = {
@@ -296,8 +223,6 @@ export type AppSettings = {
   familyCode: string;
   /** Sync cloud activée */
   cloudSync: boolean;
-  /** Occurrences cochées (id expandRange) */
-  completedKeys: string[];
 };
 
 export type FamilyState = {

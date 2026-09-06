@@ -83,8 +83,6 @@ export function CalendarBoard() {
 
   const conflicts = useMemo(() => detectConflicts(occurrences), [occurrences]);
 
-  const toggleActivityDate = store.toggleActivityDate;
-
   function onOccClick(occ: Occurrence) {
     setSelected(occ);
   }
@@ -154,7 +152,7 @@ export function CalendarBoard() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         <FilterChip
           label="Tout le monde"
           active={memberFilter === "all"}
@@ -172,13 +170,11 @@ export function CalendarBoard() {
             label={m.firstName}
             active={memberFilter === m.id}
             color={m.color}
-            photo={m.photo}
-            avatar={m.avatar}
             onClick={() => setMemberFilter(m.id)}
           />
         ))}
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         <FilterChip
           label="Toutes catégories"
           active={categoryFilter === "all"}
@@ -265,23 +261,10 @@ export function CalendarBoard() {
                     ? "Anniversaire"
                     : "Événement"}
             </p>
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <div className="mt-5 flex justify-end gap-2">
               <Button variant="ghost" onClick={() => setSelected(null)}>
                 Fermer
               </Button>
-              {selected.sourceType === "activity" ? (
-                <Button
-                  variant="soft"
-                  onClick={() => {
-                    toggleActivityDate(selected.sourceId, selected.date);
-                    setSelected(null);
-                  }}
-                >
-                  {store.activities.find((a) => a.id === selected.sourceId)?.excludedDates?.includes(selected.date)
-                    ? "Remettre ce jour-là"
-                    : "N'y va pas ce jour-là"}
-                </Button>
-              ) : null}
               {selected.sourceType !== "birthday" ? (
                 <Button onClick={editSelected}>Modifier</Button>
               ) : (
@@ -300,21 +283,17 @@ function FilterChip({
   active,
   onClick,
   color,
-  photo,
-  avatar,
 }: {
   label: string;
   active: boolean;
   onClick: () => void;
   color?: string;
-  photo?: string | null;
-  avatar?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="tap flex max-w-full shrink-0 items-center gap-1.5 rounded-full py-1.5 pl-1.5 pr-3 text-sm font-semibold"
+      className="shrink-0 rounded-full px-3 py-2 text-sm font-semibold"
       style={{
         backgroundColor: active
           ? color
@@ -325,26 +304,7 @@ function FilterChip({
         boxShadow: active && color ? `inset 0 0 0 2px ${memberTone(color)}` : "var(--shadow-card)",
       }}
     >
-      {color && (photo || avatar) ? (
-        <span
-          className="inline-flex size-6 shrink-0 overflow-hidden rounded-full"
-          style={{ boxShadow: `0 0 0 1.5px ${memberTone(color)}` }}
-        >
-          {photo ? (
-            <img src={photo} alt="" className="size-full object-cover" />
-          ) : (
-            <span className="flex size-full items-center justify-center text-[11px] leading-none">
-              {avatar}
-            </span>
-          )}
-        </span>
-      ) : color ? (
-        <span
-          className="size-2.5 shrink-0 rounded-full"
-          style={{ backgroundColor: memberTone(color) }}
-        />
-      ) : null}
-      <span className="max-w-[8rem] truncate">{label}</span>
+      {label}
     </button>
   );
 }

@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { uid } from "@/lib/utils";
+import { idbStorage } from "./idb-storage";
 import { createSeedState } from "./seed";
 import {
   type Activity,
@@ -32,7 +33,6 @@ type FamilyActions = {
   removeTask: (id: string) => void;
   addActivity: (activity: Omit<Activity, "id"> & { id?: string }) => string;
   updateActivity: (id: string, patch: Partial<Activity>) => void;
-  toggleActivityDate: (id: string, date: string) => void;
   removeActivity: (id: string) => void;
   addSchedule: (schedule: Omit<Schedule, "id"> & { id?: string }) => string;
   upsertScheduleForMember: (schedule: Omit<Schedule, "id"> & { id?: string }) => string;
@@ -56,7 +56,6 @@ type FamilyActions = {
   removeCategory: (id: string) => void;
   resetDemo: () => void;
   wipeAll: () => void;
-  toggleCompleted: (key: string) => void;
 };
 
 export type FamilyStore = FamilyState & FamilyActions;
@@ -168,17 +167,6 @@ export const useFamilyStore = create<FamilyStore>()(
       updateActivity: (id, patch) =>
         set((s) => ({
           activities: s.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)),
-        })),
-      toggleActivityDate: (id, date) =>
-        set((s) => ({
-          activities: s.activities.map((a) => {
-            if (a.id !== id) return a;
-            const current = a.excludedDates ?? [];
-            const excludedDates = current.includes(date)
-              ? current.filter((d) => d !== date)
-              : [...current, date];
-            return { ...a, excludedDates };
-          }),
         })),
       removeActivity: (id) =>
         set((s) => ({ activities: s.activities.filter((a) => a.id !== id) })),
@@ -299,47 +287,17 @@ export const useFamilyStore = create<FamilyStore>()(
         set((s) => ({
           categories: s.categories.filter((c) => !(c.id === id && !c.builtin)),
         })),
-      resetDemo: () => set(() => createSeedState()),
+      resetDemo: () => set(() => emptyFamily()),
       wipeAll: () => set(() => emptyFamily()),
-      toggleCompleted: (key) =>
-        set((s) => {
-          const cur = s.settings.completedKeys ?? [];
-          const next = cur.includes(key)
-            ? cur.filter((k) => k !== key)
-            : [...cur, key];
-          return { settings: { ...s.settings, completedKeys: next } };
-        }),
     }),
     {
-      name: "family-peps-v6-clean",
-      version: 10,
+      name: "family-peps-v4-empty",
+      version: 8,
       skipHydration: true,
-      // Stockage "sûr" : si le quota localStorage est dépassé (ex. photo trop lourde),
-      // on avale l'erreur au lieu de la laisser remonter — sinon l'appelant (ex. addActivity)
-      // pense que l'ajout a échoué, retente avec une version allégée, et l'activité se
-      // retrouve dupliquée en mémoire (le premier ajout avait pourtant déjà eu lieu).
-      storage: createJSONStorage(() => ({
-        getItem: (name) => localStorage.getItem(name),
-        setItem: (name, value) => {
-          try {
-            localStorage.setItem(name, value);
-          } catch (err) {
-            console.warn("Sauvegarde locale impossible (stockage plein) :", err);
-          }
-        },
-        removeItem: (name) => localStorage.removeItem(name),
-      })),
-      migrate: (persisted) => {
-        const p = persisted as Partial<FamilyState> & { settings?: Partial<FamilyState["settings"]> };
-        return {
-          ...p,
-          settings: {
-            ...createSeedState().settings,
-            ...p.settings,
-            completedKeys: p.settings?.completedKeys ?? [],
-          },
-        };
-      },
+      // IndexedDB plutôt que localStorage : évite l'échec silencieux
+      // d'enregistrement quand plusieurs plannings/photos dépassent le
+      // quota (~5 Mo) de localStorage.
+      storage: createJSONStorage(() => idbStorage),
       partialize: (s) => ({
         settings: s.settings,
         categories: s.categories,
