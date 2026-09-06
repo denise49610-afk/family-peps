@@ -150,29 +150,71 @@ function RecurrenceFields({
   value: Recurrence;
   onChange: (r: Recurrence) => void;
 }) {
+  function toggleWeekday(d: number) {
+    const current = value.byWeekday ?? [];
+    const next = current.includes(d)
+      ? current.filter((x) => x !== d)
+      : [...current, d].sort((a, b) => a - b);
+    onChange({ ...value, byWeekday: next.length ? next : undefined });
+  }
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <Field label="Répétition">
-        <Select
-          value={value.freq}
-          onChange={(e) =>
-            onChange({ ...value, freq: e.target.value as RecurrenceFreq })
-          }
-        >
-          <option value="none">Une seule fois</option>
-          <option value="daily">Tous les jours</option>
-          <option value="weekly">Toutes les semaines</option>
-          <option value="monthly">Tous les mois</option>
-          <option value="yearly">Tous les ans</option>
-        </Select>
-      </Field>
-      {value.freq !== "none" ? (
-        <Field label="Jusqu'au (optionnel)">
-          <Input
-            type="date"
-            value={value.until ?? ""}
-            onChange={(e) => onChange({ ...value, until: e.target.value || undefined })}
-          />
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Répétition">
+          <Select
+            value={value.freq}
+            onChange={(e) => {
+              const freq = e.target.value as RecurrenceFreq;
+              onChange({
+                ...value,
+                freq,
+                // Reset jours si on quitte le mode hebdo
+                byWeekday: freq === "weekly" ? value.byWeekday : undefined,
+              });
+            }}
+          >
+            <option value="none">Une seule fois</option>
+            <option value="daily">Tous les jours</option>
+            <option value="weekly">Toutes les semaines</option>
+            <option value="monthly">Tous les mois</option>
+            <option value="yearly">Tous les ans</option>
+          </Select>
+        </Field>
+        {value.freq !== "none" ? (
+          <Field label="Jusqu'au (optionnel)">
+            <Input
+              type="date"
+              value={value.until ?? ""}
+              onChange={(e) => onChange({ ...value, until: e.target.value || undefined })}
+            />
+          </Field>
+        ) : null}
+      </div>
+      {value.freq === "weekly" ? (
+        <Field label="Jours de la semaine">
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+              const on = (value.byWeekday ?? []).includes(d);
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => toggleWeekday(d)}
+                  className="rounded-full px-3 py-2 text-sm font-semibold"
+                  style={{
+                    backgroundColor: on ? "var(--color-accent)" : "var(--color-surface-2)",
+                    color: on ? "var(--color-accent-fg)" : "var(--color-ink)",
+                  }}
+                >
+                  {weekdayLabel(d, true)}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-[11px] font-semibold text-muted">
+            Ex. Mar + Jeu pour le foot — uniquement ces jours apparaîtront.
+          </p>
         </Field>
       ) : null}
     </div>

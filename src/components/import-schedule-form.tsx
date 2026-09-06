@@ -550,6 +550,39 @@ export function ImportScheduleForm({
 
         {slots !== null ? (
           <div className="flex flex-col gap-3">
+            {/* Confirmation directe — bien visible dès l'analyse photo */}
+            <div className="sticky top-0 z-10 -mx-1 rounded-2xl border border-primary/20 bg-primary/10 p-3 shadow-sm backdrop-blur">
+              <p className="text-sm font-extrabold text-ink">
+                {slots.length} cours détectés{source ? ` · ${source}` : ""}
+              </p>
+              <p className="mt-0.5 text-xs font-semibold text-muted">
+                Vérifiez rapidement, puis confirmez. Vous pouvez corriger un cours en le touchant.
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                <Button
+                  onClick={confirm}
+                  disabled={!slots.length || !owner}
+                  className="flex-1 min-w-[10rem]"
+                >
+                  ✓ Confirmer et enregistrer
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSlots(null);
+                    setEditingId(null);
+                    setPending(null);
+                  }}
+                >
+                  Recommencer
+                </Button>
+              </div>
+              {!owner ? (
+                <p className="mt-2 text-xs font-bold text-member-jaune-fg">
+                  Choisissez d’abord l’élève concerné en haut.
+                </p>
+              ) : null}
+            </div>
             <Field label="Nom du planning">
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </Field>

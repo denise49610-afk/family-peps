@@ -137,6 +137,8 @@ export function expandActivity(
   to: Date,
   members: FamilyMember[],
 ): Occurrence[] {
+  // Aucun jour sélectionné = aucune occurrence (évite d'afficher partout)
+  if (!activity.weekdays?.length) return [];
   const first = members.find((m) => activity.memberIds.includes(m.id));
   const occ: Occurrence[] = [];
   let cursor = startOfDay(from);

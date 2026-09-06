@@ -163,12 +163,34 @@ export function recurrenceDates(
   const endBound = until < to ? until : to;
   const interval = Math.max(1, recurrence.interval || 1);
   const out: string[] = [];
-  let cursor = start;
+  const rangeStart = startOfDay(from);
+  const rangeEnd = startOfDay(endBound);
   let guard = 0;
 
+  // Weekly + plusieurs jours (ex. Mar + Jeu) : avancer jour par jour.
+  // Un saut de 7 jours ne touche qu'un seul jour de la semaine.
+  if (recurrence.freq === "weekly" && recurrence.byWeekday && recurrence.byWeekday.length > 0) {
+    let cursor = start < rangeStart ? rangeStart : start;
+    while (cursor <= rangeEnd && guard < 800) {
+      guard += 1;
+      if (cursor >= start && cursor >= rangeStart) {
+        const dow = getDay(cursor);
+        if (recurrence.byWeekday.includes(dow)) {
+          const weeksFromStart = Math.floor(differenceInCalendarDays(cursor, start) / 7);
+          if (weeksFromStart % interval === 0) {
+            out.push(toISODate(cursor));
+          }
+        }
+      }
+      cursor = addDays(cursor, 1);
+    }
+    return out;
+  }
+
+  let cursor = start;
   while (cursor <= endBound && guard < 800) {
     guard += 1;
-    if (cursor >= startOfDay(from) && cursor <= startOfDay(endBound)) {
+    if (cursor >= rangeStart && cursor <= rangeEnd) {
       const dow = getDay(cursor);
       if (!recurrence.byWeekday || recurrence.byWeekday.includes(dow)) {
         out.push(toISODate(cursor));
