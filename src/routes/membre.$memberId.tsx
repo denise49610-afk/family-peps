@@ -219,6 +219,7 @@ function MemberPlanning({
   const store = useFamilyStore();
   const { open } = useEditors();
   const member = store.members.find((m) => m.id === memberId);
+  const isChild = member?.role === "enfant";
   const memberActivities = store.activities.filter((a) => a.memberIds.includes(memberId));
   const own = store.schedules.filter((s) => s.memberId === memberId);
   const slots = own.flatMap((s) => s.slots);
@@ -239,9 +240,14 @@ function MemberPlanning({
       <section className="rounded-[1.6rem] bg-surface p-4 card-shadow">
         <div className="mb-3 flex items-center justify-between gap-2">
           <div>
-            <h2 className="font-display text-lg font-extrabold">Planning de l'école</h2>
+            <h2 className="font-display text-lg font-extrabold">
+              {isChild ? "Planning de l'école" : "Planning de travail"}
+            </h2>
             <p className="text-xs font-semibold text-muted">
-              {scheduleName || "Uniquement le planning de cette personne — pas le calendrier familial"}
+              {scheduleName ||
+                (isChild
+                  ? "Uniquement le planning de cette personne — pas le calendrier familial"
+                  : "Horaires de travail — pas le calendrier familial")}
             </p>
           </div>
         </div>
@@ -262,7 +268,11 @@ function MemberPlanning({
         <DayHoursStrip
           slots={slots}
           color={member?.color}
-          emptyHint="Pas encore de planning — importez une photo ou collez le tableau Pronote."
+          emptyHint={
+            isChild
+              ? "Pas encore de planning — importez une photo ou collez le tableau Pronote."
+              : "Pas encore de planning — ajoutez les horaires ou une photo du planning."
+          }
         />
 
         <div className="mt-3 grid grid-cols-2 gap-2">

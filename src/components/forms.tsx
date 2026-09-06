@@ -1696,7 +1696,7 @@ function QuickMenu({ onClose }: { onClose: () => void }) {
     { type: "note" as const, label: "Message", hint: "Écrire dans le chat famille", color: "turquoise" },
     { type: "member" as const, label: "Membre", hint: "Ajouter quelqu'un", color: "rose" },
     { type: "activity" as const, label: "Activité", hint: "Sport ou loisir récurrent", color: "orange" },
-    { type: "schedule" as const, label: "Planning scolaire", hint: "Emploi du temps", color: "jaune" },
+    { type: "schedule" as const, label: "Planning (école/travail)", hint: "Emploi du temps, semaine A/B…", color: "jaune" },
     { type: "import-schedule" as const, label: "Importer un planning", hint: "Photo ou copier-coller", color: "corail" },
   ];
   return (
