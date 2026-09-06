@@ -270,6 +270,8 @@ export type AppSettings = {
   familyCode: string;
   /** Sync cloud activée */
   cloudSync: boolean;
+  /** Occurrences cochées (id expandRange) */
+  completedKeys: string[];
 };
 
 export type FamilyState = {

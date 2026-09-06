@@ -31,21 +31,23 @@ export function MemberAvatar({
   member,
   size = "md",
   className,
+  plain = false,
 }: {
   member: Pick<FamilyMember, "firstName" | "lastName" | "nickname" | "color" | "photo"> & {
     avatar?: string;
   };
   size?: keyof typeof SIZES;
   className?: string;
+  plain?: boolean;
 }) {
   const emoji = member.avatar?.trim();
-  const ring = size === "xl" || size === "lg" ? 3 : 2;
+  const ring = plain ? 0 : size === "xl" || size === "lg" ? 3 : 2;
   return (
     <span
       className={cn("relative inline-flex shrink-0 items-center justify-center", SIZES[size], className)}
       style={{
         padding: ring,
-        backgroundColor: memberTone(member.color),
+        backgroundColor: plain ? "transparent" : memberTone(member.color),
         borderRadius: 9999,
       }}
     >

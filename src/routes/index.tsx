@@ -3,40 +3,84 @@ import { addDays } from "date-fns";
 import {
   Bell,
   CalendarDays,
-  CheckCircle2,
-  ChevronDown,
+  Check,
   ChevronRight,
-  FileText,
-  MoreHorizontal,
+  ClipboardCheck,
+  Folder,
+  Heart,
+  MapPin,
+  Megaphone,
+  MessageCircle,
+  Plus,
+  Settings,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { memberTone } from "@/components/brand";
+import { useMemo, useRef } from "react";
+import { memberTone, Spark } from "@/components/brand";
 import { useEditors } from "@/components/editors-context";
 import { MemberAvatar } from "@/components/member-avatar";
-import { openMoreMenu } from "@/components/shell";
-import { ShareFamilyCard } from "@/components/share-family";
-import { detectConflicts, expandRange, reminderLabel } from "@/lib/family/expand";
-import { formatDayLong, formatTime, todayISO } from "@/lib/family/dates";
+import { detectConflicts, expandRange } from "@/lib/family/expand";
+import {
+  formatClock,
+  formatDayLong,
+  relativeDayLabel,
+  todayISO,
+} from "@/lib/family/dates";
 import { useFamilyStore } from "@/lib/family/store";
+import type { Occurrence } from "@/lib/family/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({ component: Home });
 
+const QUICK = [
+  {
+    to: "/calendrier",
+    label: "Planning",
+    sub: "d'aujourd'hui",
+    icon: CalendarDays,
+    bg: "bg-tile-purple",
+    fg: "text-tile-purple-fg",
+  },
+  {
+    to: "/taches",
+    label: "Tâches",
+    sub: "à faire",
+    icon: ClipboardCheck,
+    bg: "bg-tile-pink",
+    fg: "text-tile-pink-fg",
+  },
+  {
+    to: "/documents",
+    label: "Documents",
+    sub: "importants",
+    icon: Folder,
+    bg: "bg-tile-amber",
+    fg: "text-tile-amber-fg",
+  },
+  {
+    to: "/notes",
+    label: "Messages",
+    sub: "de la famille",
+    icon: MessageCircle,
+    bg: "bg-tile-mint",
+    fg: "text-tile-mint-fg",
+  },
+] as const;
+
 function Home() {
-  const settings = useFamilyStore((s) => s.settings);
   const members = useFamilyStore((s) => s.members);
   const events = useFamilyStore((s) => s.events);
   const schedules = useFamilyStore((s) => s.schedules);
   const activities = useFamilyStore((s) => s.activities);
   const tasksAll = useFamilyStore((s) => s.tasks);
   const documents = useFamilyStore((s) => s.documents);
-  const notes = useFamilyStore((s) => s.notes);
   const categories = useFamilyStore((s) => s.categories);
+  const settings = useFamilyStore((s) => s.settings);
+  const toggleCompleted = useFamilyStore((s) => s.toggleCompleted);
   const { open } = useEditors();
-  const [familyOpen, setFamilyOpen] = useState(false);
-  const [bellOpen, setBellOpen] = useState(false);
+  const rappelsRef = useRef<HTMLElement | null>(null);
   const today = todayISO();
   const now = useMemo(() => new Date(), [today]);
+  const doneKeys = settings.completedKeys ?? [];
 
   const storeSlice = useMemo(
     () => ({
@@ -60,305 +104,342 @@ function Home() {
     [storeSlice, now],
   );
   const todayOcc = occ.filter((o) => o.date === today && o.sourceType !== "schedule");
-  const tasks = tasksAll
-    .filter((t) => t.status !== "done")
-    .sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
-  const reminders = occ
-    .map((o) => ({ o, label: reminderLabel(o, now) }))
-    .filter((x) => x.label);
-  const nextReminder = reminders[0];
-  const docs = [...documents]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 3);
-  const lastNote = [...notes]
-    .filter((n) => n.visibility !== "personal")
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-  const lastWho = members.find((m) => m.id === lastNote?.memberId);
+  const tasks = tasksAll.filter((t) => t.status !== "done");
+  const upcoming = occ.filter((o) => {
+    if (o.date < today) return false;
+    if (o.date === today) return false;
+    if (doneKeys.includes(o.id)) return false;
+    return o.reminderMinutes != null || o.sourceType === "event";
+  }).slice(0, 4);
+
   const conflicts = useMemo(
     () => detectConflicts(occ.filter((o) => o.date === today)),
     [occ, today],
   );
 
-  const rawName =
-    (settings.familyName && settings.familyName.trim()) ||
-    members.map((m) => m.lastName.trim()).find((n) => n.length > 1) ||
-    "Ma famille";
-  const familyName = rawName;
   const hour = now.getHours();
   const hello = hour < 18 ? "Bonjour" : "Bonsoir";
-  const vibe =
-    hour < 12
-      ? "Une belle journée commence"
-      : hour < 18
-        ? "On avance ensemble"
-        : "Douce soirée en famille";
+  const reminderCount = upcoming.length;
+
+  function todoFor(memberId: string) {
+    const taskN = tasks.filter((t) => t.assigneeId === memberId).length;
+    const eventN = todayOcc.filter(
+      (o) => o.memberIds.includes(memberId) && !doneKeys.includes(o.id),
+    ).length;
+    return taskN + eventN;
+  }
+
+  function openOcc(o: Occurrence) {
+    if (o.sourceType === "event") open({ type: "event", id: o.sourceId });
+    else if (o.sourceType === "activity") open({ type: "activity", id: o.sourceId });
+    else if (o.sourceType === "schedule") open({ type: "schedule", id: o.sourceId });
+  }
 
   return (
-    <div className="stagger-in flex flex-col gap-6">
+    <div className="stagger-in flex flex-col gap-4">
       <header className="relative">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="font-display text-[1.85rem] font-extrabold leading-tight tracking-tight">
-              {hello}{" "}
-              <span aria-hidden className="inline-block origin-bottom-right">
-                👋
+          <div className="min-w-0">
+            <p className="relative inline-flex items-center gap-1">
+              <Spark className="size-3 text-primary -translate-y-2" />
+              <span className="font-script text-[1.5rem] leading-none text-primary">
+                {hello}
               </span>
+              <Spark className="size-2.5 text-primary/70 translate-y-1" />
+              <Spark className="size-2 text-zen-e -translate-y-1" />
+            </p>
+            <h1 className="mt-0.5 flex items-center gap-2 font-display text-[1.7rem] font-extrabold leading-tight tracking-tight text-ink">
+              Toute la famille !
+              <Heart className="size-5 fill-primary text-primary" />
             </h1>
-            <button
-              type="button"
-              onClick={() => setFamilyOpen((v) => !v)}
-              className="mt-1 inline-flex items-center gap-1 text-sm font-bold text-muted"
-            >
-              Toute la famille
-              <ChevronDown className={cn("size-4 transition", familyOpen && "rotate-180")} />
-            </button>
-            <p className="mt-0.5 text-xs font-semibold text-faint">{vibe}</p>
+            <p className="mt-1.5 flex items-center gap-1.5 text-[13px] font-bold text-muted">
+              <CalendarDays className="size-3.5" />
+              {formatDayLong(now)}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pt-1">
             <button
               type="button"
               aria-label="Rappels"
-              onClick={() => setBellOpen((v) => !v)}
-              className="relative flex size-11 items-center justify-center rounded-full bg-surface card-shadow"
+              onClick={() => rappelsRef.current?.scrollIntoView({ behavior: "smooth" })}
+              className="relative flex size-12 items-center justify-center rounded-full bg-surface card-shadow"
             >
-              <Bell className="size-5" />
-              {reminders.length > 0 ? (
-                <span className="absolute right-2.5 top-2.5 size-2 rounded-full bg-primary" />
+              <Bell className="size-5 text-ink" />
+              {reminderCount > 0 ? (
+                <span className="count-badge absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-black">
+                  {reminderCount > 9 ? "9+" : reminderCount}
+                </span>
               ) : null}
             </button>
-            <button
-              type="button"
-              aria-label="Menu"
-              onClick={() => openMoreMenu()}
-              className="flex size-11 items-center justify-center rounded-full bg-surface card-shadow lg:hidden"
+            <Link
+              to="/parametres"
+              aria-label="Paramètres"
+              className="flex size-12 items-center justify-center rounded-full bg-surface card-shadow"
             >
-              <MoreHorizontal className="size-5" />
-            </button>
+              <Settings className="size-5 text-ink" />
+            </Link>
           </div>
         </div>
-
-        {familyOpen ? (
-          <div className="absolute left-0 z-20 mt-2 w-56 rounded-2xl bg-surface p-2 card-shadow">
-            <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-muted">
-              Famille {familyName}
-            </p>
-            <Link
-              to="/famille"
-              onClick={() => setFamilyOpen(false)}
-              className="block rounded-xl px-3 py-2 text-sm font-bold hover:bg-surface-2"
-            >
-              Voir tout le monde
-            </Link>
-            {members.map((m) => (
-              <Link
-                key={m.id}
-                to="/membre/$memberId"
-                params={{ memberId: m.id }}
-                onClick={() => setFamilyOpen(false)}
-                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold hover:bg-surface-2"
-              >
-                <MemberAvatar member={m} size="xs" />
-                {m.firstName}
-              </Link>
-            ))}
-          </div>
-        ) : null}
       </header>
 
-      <div className="grid grid-cols-4 gap-x-2 gap-y-4">
-        {members.map((m) => (
-          <Link
-            key={m.id}
-            to="/membre/$memberId"
-            params={{ memberId: m.id }}
-            className="tap flex min-w-0 flex-col items-center gap-1.5"
-          >
-            <MemberAvatar member={m} size="lg" className="shadow-card" />
-            <span className="w-full truncate text-center text-xs font-extrabold leading-tight">
-              {m.firstName}
-            </span>
-          </Link>
-        ))}
+      <section className={cn("flex gap-2", members.length > 4 && "overflow-x-auto pb-1")}>
+        {members.map((m) => {
+          const n = todoFor(m.id);
+          const ping = todayOcc.some(
+            (o) => o.memberIds.includes(m.id) && !doneKeys.includes(o.id),
+          );
+          return (
+            <Link
+              key={m.id}
+              to="/membre/$memberId"
+              params={{ memberId: m.id }}
+              className={cn(
+                "tap relative flex flex-col items-center rounded-[1.25rem] px-1 pb-2 pt-2.5",
+                members.length > 4 ? "w-[4.85rem] shrink-0" : "min-w-0 flex-1",
+              )}
+              style={{ backgroundColor: memberTone(m.color, "soft") }}
+            >
+              {ping ? (
+                <span
+                  className="absolute right-1.5 top-1.5 size-2 rounded-full"
+                  style={{ backgroundColor: memberTone(m.color) }}
+                />
+              ) : null}
+              <MemberAvatar member={m} size="lg" plain className="size-[3.25rem]" />
+              <span className="mt-1.5 w-full truncate text-center text-[12px] font-extrabold">
+                {m.firstName}
+              </span>
+              <span
+                className="mt-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-extrabold text-white"
+                style={{ backgroundColor: memberTone(m.color) }}
+              >
+                {n} à faire
+              </span>
+            </Link>
+          );
+        })}
         <button
           type="button"
           onClick={() => open({ type: "member" })}
-          className="tap flex min-w-0 flex-col items-center gap-1.5 text-muted"
+          className={cn(
+            "tap flex flex-col items-center justify-center rounded-[1.25rem] border-2 border-dashed border-line bg-surface px-1 py-2.5 text-muted",
+            members.length > 4 ? "w-[4.85rem] shrink-0" : "min-w-0 flex-1",
+            members.length === 0 && "max-w-[6.2rem]",
+          )}
         >
-          <span className="flex size-16 items-center justify-center rounded-full border-2 border-dashed border-line bg-surface text-2xl font-bold">
-            +
+          <span className="flex size-10 items-center justify-center rounded-full bg-surface-2 text-ink">
+            <Plus className="size-5" strokeWidth={2.4} />
           </span>
-          <span className="w-full truncate text-center text-xs font-extrabold leading-tight">
+          <span className="mt-1.5 text-center text-[11px] font-extrabold leading-tight text-ink">
             Ajouter
+            <span className="block font-bold text-muted">un membre</span>
           </span>
         </button>
-      </div>
-      <p className="-mt-3 text-xs font-semibold text-muted">
-        Touchez une photo pour voir le planning de chacun
-      </p>
-
-      <ShareFamilyCard compact />
+      </section>
 
       {conflicts.length > 0 ? (
         <p className="rounded-2xl bg-member-jaune-soft px-4 py-3 text-sm font-bold text-member-jaune-fg">
-          {conflicts.length} chevauchement{conflicts.length > 1 ? "s" : ""} aujourd'hui —
-          à vérifier dans le planning.
+          {conflicts.length} chevauchement{conflicts.length > 1 ? "s" : ""} aujourd'hui — à
+          vérifier dans le planning.
         </p>
       ) : null}
 
-      {bellOpen ? (
-        <section className="rounded-[1.6rem] bg-surface p-4 card-shadow">
-          <p className="mb-2 font-display text-base font-extrabold">Rappels</p>
-          {reminders.length === 0 ? (
-            <p className="text-sm text-muted">Rien d'urgent pour le moment.</p>
-          ) : (
-            <ul className="space-y-2">
-              {reminders.slice(0, 4).map((r) => (
-                <li key={r.o.id} className="text-sm font-semibold">
-                  {r.label}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ) : null}
-
-      <section>
-        <h2 className="mb-3 font-display text-xl font-extrabold">Aujourd'hui</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            to="/calendrier"
-            className="tap rounded-[1.5rem] bg-surface px-4 py-4 card-shadow"
+      <section className="relative">
+        <Spark className="absolute -left-1 -top-2 size-3 text-primary/80" />
+        <Spark className="absolute -right-1 top-1 size-2.5 text-primary/60" />
+        <h2 className="mb-2.5 font-display text-[1.05rem] font-extrabold">Accès rapides</h2>
+        <div className="grid grid-cols-5 gap-2">
+          {QUICK.map((q) => {
+            const Icon = q.icon;
+            return (
+              <Link
+                key={q.to}
+                to={q.to}
+                className={cn(
+                  "tap flex min-h-[5.5rem] flex-col items-start rounded-[1.15rem] px-2 py-2",
+                  q.bg,
+                  q.fg,
+                )}
+              >
+                <Icon className="size-5" strokeWidth={2.2} />
+                <span className="mt-auto pt-2 text-[11px] font-extrabold leading-tight text-ink">
+                  {q.label}
+                  <span className="block font-bold text-ink/55">{q.sub}</span>
+                </span>
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => rappelsRef.current?.scrollIntoView({ behavior: "smooth" })}
+            className="tap flex min-h-[5.5rem] flex-col items-start rounded-[1.15rem] bg-tile-lilac px-2 py-2 text-tile-lilac-fg"
           >
-            <span className="flex size-10 items-center justify-center rounded-2xl bg-member-violet-soft text-member-violet">
-              <CalendarDays className="size-5" />
+            <Megaphone className="size-5" strokeWidth={2.2} />
+            <span className="mt-auto pt-2 text-left text-[11px] font-extrabold leading-tight text-ink">
+              Rappels
+              <span className="block font-bold text-ink/55">& alertes</span>
             </span>
-            <p className="mt-3 font-display text-2xl font-extrabold tabular-nums leading-none">
-              {todayOcc.length}
-            </p>
-            <p className="mt-1 text-sm font-bold text-muted">
-              événement{todayOcc.length > 1 ? "s" : ""} à venir
-            </p>
-          </Link>
-          <Link
-            to="/taches"
-            className="tap rounded-[1.5rem] bg-surface px-4 py-4 card-shadow"
-          >
-            <span className="flex size-10 items-center justify-center rounded-2xl bg-member-vert-soft text-member-vert">
-              <CheckCircle2 className="size-5" />
-            </span>
-            <p className="mt-3 font-display text-2xl font-extrabold tabular-nums leading-none">
-              {tasks.length}
-            </p>
-            <p className="mt-1 text-sm font-bold text-muted">
-              tâche{tasks.length > 1 ? "s" : ""} en attente
-            </p>
-          </Link>
+          </button>
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 font-display text-lg font-extrabold">Prochain rappel</h2>
-        {nextReminder ? (
+        <div className="mb-2.5 flex items-center justify-between gap-2">
+          <h2 className="flex shrink-0 items-center gap-1.5 font-display text-[1.15rem] font-extrabold">
+            Aujourd'hui
+            <Spark className="size-3.5 text-sun" />
+          </h2>
           <Link
             to="/calendrier"
-            className="tap flex items-center gap-3 rounded-[1.5rem] bg-member-jaune-soft px-4 py-4"
+            className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full bg-surface px-2.5 py-1.5 text-[11px] font-extrabold text-muted card-shadow"
           >
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white text-member-jaune-fg card-shadow">
-              <Bell className="size-5" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate font-extrabold">{nextReminder.o.title}</p>
-              <p className="text-sm font-semibold text-member-jaune-fg/80">
-                {nextReminder.o.memberIds
-                  .map((id) => members.find((m) => m.id === id)?.firstName)
-                  .filter(Boolean)
-                  .join(", ") || "Famille"}
-                {nextReminder.o.startTime
-                  ? ` · Aujourd'hui à ${formatTime(nextReminder.o.startTime)}`
-                  : ""}
-              </p>
-            </div>
+            Voir le planning complet
+            <ChevronRight className="size-3.5" />
           </Link>
-        ) : (
-          <p className="rounded-[1.5rem] bg-surface px-4 py-4 text-sm font-semibold text-muted card-shadow">
-            Aucun rappel à venir. Profitez-en.
-          </p>
-        )}
-      </section>
-
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-lg font-extrabold">Documents récents</h2>
         </div>
-        <div className="rounded-[1.6rem] bg-surface px-2 py-2 card-shadow">
-          {docs.length === 0 ? (
+        <div className="rounded-[1.5rem] bg-surface px-1.5 py-1.5 card-shadow">
+          {todayOcc.length === 0 ? (
             <button
               type="button"
-              onClick={() => open({ type: "document" })}
-              className="w-full px-3 py-4 text-left text-sm font-semibold text-muted"
+              onClick={() => open({ type: "event", date: today })}
+              className="w-full px-3 py-8 text-center text-sm font-semibold text-muted"
             >
-              Aucun document — ajouter
+              Rien de prévu — ajouter un événement
             </button>
           ) : (
-            <ul>
-              {docs.map((d) => {
-                const cat = categories.find((c) => c.id === d.categoryId);
+            <ul className="flex flex-col">
+              {todayOcc.map((o) => {
+                const who =
+                  members.find((m) => m.id === o.memberIds[0]) ??
+                  members.find((m) => o.memberIds.includes(m.id));
+                const color = o.color ?? who?.color ?? "violet";
+                const done = doneKeys.includes(o.id);
+                const isBell = !done && o.reminderMinutes != null;
                 return (
-                  <li key={d.id}>
-                    <Link
-                      to="/documents"
-                      className="flex items-center gap-3 rounded-2xl px-3 py-3 hover:bg-surface-2"
-                    >
-                      <span
-                        className="flex size-10 shrink-0 items-center justify-center rounded-xl"
-                        style={{
-                          backgroundColor: memberTone(cat?.color ?? "violet", "soft"),
-                          color: memberTone(cat?.color ?? "violet"),
-                        }}
+                  <li key={o.id}>
+                    <div className="flex items-center gap-2 rounded-[1.1rem] px-1.5 py-1.5">
+                      <button
+                        type="button"
+                        onClick={() => openOcc(o)}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                       >
-                        <FileText className="size-5" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-extrabold">{d.name}</span>
-                        <span className="text-xs font-semibold text-muted">
-                          Ajouté le {d.createdAt.slice(8, 10)}/{d.createdAt.slice(5, 7)}
+                        <span
+                          className="flex h-8 min-w-[3.15rem] items-center justify-center rounded-xl px-1.5 text-[11px] font-black tabular-nums"
+                          style={{
+                            backgroundColor: memberTone(color, "soft"),
+                            color: memberTone(color, "fg"),
+                          }}
+                        >
+                          {o.allDay ? "Jour" : formatClock(o.startTime)}
                         </span>
-                      </span>
-                    </Link>
+                        {who ? (
+                          <MemberAvatar member={who} size="sm" plain className="size-9" />
+                        ) : null}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-extrabold leading-tight">
+                            {who?.firstName ?? "Famille"}
+                          </span>
+                          <span className="block truncate text-[12px] font-semibold text-muted">
+                            {o.title}
+                          </span>
+                        </span>
+                      </button>
+                      {o.location ? (
+                        <span
+                          className="inline-flex max-w-[7.5rem] items-center gap-0.5 truncate rounded-full px-2.5 py-1 text-[11px] font-extrabold"
+                          style={{
+                            backgroundColor: memberTone(color, "soft"),
+                            color: memberTone(color, "fg"),
+                          }}
+                        >
+                          <MapPin className="size-3 shrink-0" />
+                          <span className="truncate">{o.location}</span>
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label={done ? "Marquer non fait" : "Marquer fait"}
+                        onClick={() => toggleCompleted(o.id)}
+                        className="flex size-8 shrink-0 items-center justify-center"
+                      >
+                        {done ? (
+                          <span
+                            className="flex size-6 items-center justify-center rounded-full text-white"
+                            style={{ backgroundColor: memberTone(color) }}
+                          >
+                            <Check className="size-3.5" strokeWidth={3} />
+                          </span>
+                        ) : isBell ? (
+                          <span
+                            className="flex size-6 items-center justify-center rounded-full"
+                            style={{
+                              backgroundColor: memberTone(color, "soft"),
+                              color: memberTone(color, "fg"),
+                            }}
+                          >
+                            <Bell className="size-3.5" />
+                          </span>
+                        ) : (
+                          <span className="size-5 rounded-full border-2 border-line" />
+                        )}
+                      </button>
+                    </div>
                   </li>
                 );
               })}
             </ul>
           )}
         </div>
-        <Link
-          to="/documents"
-          className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-primary"
-        >
-          Voir tous les documents
-          <ChevronRight className="size-4" />
-        </Link>
       </section>
 
-      {lastNote ? (
-        <Link
-          to="/notes"
-          className="tap flex items-center gap-3 rounded-[1.5rem] bg-surface px-4 py-3 card-shadow"
-        >
-          {lastWho ? <MemberAvatar member={lastWho} size="sm" /> : null}
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-muted">Dernier message</p>
-            <p className="truncate text-sm font-bold">
-              <span className="text-ink">{lastWho?.firstName ?? "Famille"} · </span>
-              <span className="text-muted">{lastNote.content}</span>
-            </p>
-          </div>
-        </Link>
-      ) : null}
-
-      <p className="text-center text-xs font-semibold text-faint">
-        {formatDayLong(now)}
-      </p>
+      <section
+        ref={rappelsRef}
+        id="rappels"
+        className="scroll-mt-4 rounded-[1.45rem] bg-remind-bg px-3.5 py-3"
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-display text-[1.05rem] font-extrabold text-ink">
+            <span className="flex size-7 items-center justify-center rounded-full bg-white text-remind-fg">
+              <Bell className="size-3.5" />
+            </span>
+            Rappels à venir
+          </h2>
+          <Link to="/calendrier" className="text-[12px] font-extrabold text-remind-fg">
+            Tout voir
+          </Link>
+        </div>
+        {upcoming.length === 0 ? (
+          <p className="py-3 text-sm font-semibold text-muted">Rien d'urgent pour le moment.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {upcoming.map((o) => (
+              <li key={o.id}>
+                <div className="flex items-start gap-3 rounded-2xl bg-white px-3 py-2.5">
+                  <button
+                    type="button"
+                    aria-label="Cocher"
+                    onClick={() => toggleCompleted(o.id)}
+                    className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border-2 border-line"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => openOcc(o)}
+                    className="min-w-0 flex-1 text-left"
+                  >
+                    <span className="text-[11px] font-bold text-muted">
+                      {relativeDayLabel(o.date, now)}
+                      {o.startTime ? `  •  ${formatClock(o.startTime)}` : ""}
+                    </span>
+                    <span className="mt-0.5 block text-[13px] font-extrabold leading-snug">
+                      {o.title}
+                    </span>
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

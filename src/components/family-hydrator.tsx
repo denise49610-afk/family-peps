@@ -9,11 +9,8 @@ export function FamilyHydrator() {
     const api = useFamilyStore.persist;
     const start = () => {
       const st = useFamilyStore.getState();
-      const demo = st.members.some((m) =>
-        ["member-maman", "member-papa", "member-sofiane", "member-ayyoub"].includes(m.id),
-      );
-      if (demo) {
-        st.wipeAll();
+      if (!Array.isArray(st.settings.completedKeys)) {
+        st.updateSettings({ completedKeys: [] });
       }
       void (async () => {
         const params = new URLSearchParams(window.location.search);

@@ -1,8 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ColorPicker } from "@/components/forms";
 import { ShareFamilyCard } from "@/components/share-family";
+import { MORE_PAGES } from "@/components/shell";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/empty";
@@ -48,6 +49,26 @@ function SettingsPage() {
     <div className="flex flex-col gap-5">
       <PageHeader title="Paramètres" subtitle="Tout est modifiable. Rien n'est figé." />
 
+      <section className="rounded-3xl bg-surface p-4 card-shadow lg:hidden">
+        <h2 className="mb-3 px-1 font-display text-lg font-semibold">Pages</h2>
+        <div className="grid grid-cols-2 gap-2">
+          {MORE_PAGES.filter((p) => p.to !== "/parametres").map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="flex min-h-12 items-center gap-2 rounded-2xl bg-surface-2 px-3 text-sm font-bold"
+              >
+                <span className="flex size-9 items-center justify-center rounded-xl bg-surface text-primary">
+                  <Icon className="size-5" />
+                </span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </section>
       <ShareFamilyCard />
       {s.familyCode ? (
         <div className="-mt-2 flex flex-wrap gap-2 px-1">

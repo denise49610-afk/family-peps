@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { uid } from "@/lib/utils";
-import { createSeedState } from "./seed";
+import { createSeedState, createShowcaseState } from "./seed";
 import {
   type Activity,
   type AppSettings,
@@ -55,6 +55,7 @@ type FamilyActions = {
   removeCategory: (id: string) => void;
   resetDemo: () => void;
   wipeAll: () => void;
+  toggleCompleted: (key: string) => void;
 };
 
 export type FamilyStore = FamilyState & FamilyActions;
@@ -66,7 +67,7 @@ function emptyFamily(): FamilyState {
 export const useFamilyStore = create<FamilyStore>()(
   persist(
     (set, get) => ({
-      ...createSeedState(),
+      ...createShowcaseState(),
       updateSettings: (patch) =>
         set((s) => ({ settings: { ...s.settings, ...patch } })),
       addMember: (member) => {
@@ -286,13 +287,32 @@ export const useFamilyStore = create<FamilyStore>()(
         set((s) => ({
           categories: s.categories.filter((c) => !(c.id === id && !c.builtin)),
         })),
-      resetDemo: () => set(() => emptyFamily()),
+      resetDemo: () => set(() => createShowcaseState()),
       wipeAll: () => set(() => emptyFamily()),
+      toggleCompleted: (key) =>
+        set((s) => {
+          const cur = s.settings.completedKeys ?? [];
+          const next = cur.includes(key)
+            ? cur.filter((k) => k !== key)
+            : [...cur, key];
+          return { settings: { ...s.settings, completedKeys: next } };
+        }),
     }),
     {
-      name: "family-peps-v4-empty",
-      version: 8,
+      name: "family-peps-v5-home",
+      version: 9,
       skipHydration: true,
+      migrate: (persisted) => {
+        const p = persisted as Partial<FamilyState> & { settings?: Partial<FamilyState["settings"]> };
+        return {
+          ...p,
+          settings: {
+            ...createSeedState().settings,
+            ...p.settings,
+            completedKeys: p.settings?.completedKeys ?? [],
+          },
+        };
+      },
       partialize: (s) => ({
         settings: s.settings,
         categories: s.categories,

@@ -3,26 +3,41 @@
 @theme {
   --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-script: "Pacifico", "Segoe Script", cursive;
 
-  --color-bg: #f4efe6;
-  --color-bg-deep: #ebe4d6;
+  --color-bg: #f7f8fc;
+  --color-bg-deep: #eef0f7;
   --color-surface: #ffffff;
-  --color-surface-2: #f7f3ec;
-  --color-ink: #2a2430;
-  --color-muted: #8a8494;
-  --color-faint: #b4aeb8;
+  --color-surface-2: #f4f5fa;
+  --color-ink: #1c1d3a;
+  --color-muted: #8b8fa8;
+  --color-faint: #b4b8c8;
   --color-primary: #7c5cff;
   --color-primary-fg: #ffffff;
   --color-accent: #6fcf7a;
   --color-accent-fg: #14331a;
-  --color-line: #ece6dc;
+  --color-line: #eceef5;
   --color-ok: #6fcf7a;
   --color-warn: #f0b14a;
-  --color-danger: #ee7a86;
+  --color-danger: #ff4d62;
   --color-sun: #f5c97a;
   --color-zen-z: #6fcf7a;
   --color-zen-e: #f48fb1;
   --color-zen-n: #8b7cf7;
+  --color-badge: #ff4d62;
+
+  --color-tile-purple: #ede3ff;
+  --color-tile-purple-fg: #5b3cc4;
+  --color-tile-pink: #fde2ef;
+  --color-tile-pink-fg: #c44a80;
+  --color-tile-amber: #ffe7c2;
+  --color-tile-amber-fg: #b56a12;
+  --color-tile-mint: #d4f1ec;
+  --color-tile-mint-fg: #1d7a72;
+  --color-tile-lilac: #e7e3ff;
+  --color-tile-lilac-fg: #6b4fd4;
+  --color-remind-bg: #fff1f4;
+  --color-remind-fg: #e24b6a;
 
   --color-member-rose: #f48fb1;
   --color-member-rose-soft: #fde8f0;
@@ -103,16 +118,16 @@
   --color-member-taupe-soft: #f1ece6;
   --color-member-taupe-fg: #3f352c;
 
-
   --radius-sm: 12px;
   --radius-md: 18px;
   --radius-lg: 24px;
   --radius-xl: 32px;
   --radius-2xl: 40px;
 
-  --shadow-card: 0 8px 24px -16px rgba(42, 36, 48, 0.18);
-  --shadow-card-hover: 0 12px 28px -14px rgba(42, 36, 48, 0.22);
+  --shadow-card: 0 10px 28px -18px rgba(28, 29, 58, 0.22);
+  --shadow-card-hover: 0 14px 32px -16px rgba(28, 29, 58, 0.26);
   --shadow-pop: 0 16px 36px -14px rgba(124, 92, 255, 0.45);
+  --shadow-nav: 0 12px 40px -12px rgba(28, 29, 58, 0.22);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -172,6 +187,10 @@
     font-family: var(--font-display);
   }
 
+  .font-script {
+    font-family: var(--font-script);
+  }
+
   .card-shadow {
     box-shadow: var(--shadow-card);
   }
@@ -210,23 +229,32 @@
 
   .nav-plus {
     box-shadow:
-      0 10px 24px -8px rgba(124, 92, 255, 0.55),
-      0 0 0 6px color-mix(in oklab, var(--color-primary) 12%, white);
+      0 12px 28px -8px rgba(124, 92, 255, 0.55),
+      0 0 0 6px color-mix(in oklab, var(--color-primary) 14%, white);
+  }
+
+  .nav-dock {
+    box-shadow: var(--shadow-nav);
   }
 
   .chip-scroll {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.7rem;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scroll-snap-type: x proximity;
-    padding: 0.35rem 0.2rem 0.5rem;
-    margin-inline: -0.2rem;
+    padding: 0.2rem 0.15rem 0.45rem;
+    margin-inline: -0.15rem;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
   .chip-scroll::-webkit-scrollbar {
     display: none;
+  }
+
+  .count-badge {
+    background: var(--color-badge);
+    color: #fff;
   }
 }
 

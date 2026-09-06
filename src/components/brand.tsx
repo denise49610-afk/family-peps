@@ -52,3 +52,27 @@ export function memberTone(color: string, kind: "solid" | "soft" | "fg" = "solid
   if (kind === "fg") return `var(--color-member-${safe}-fg)`;
   return `var(--color-member-${safe})`;
 }
+
+export function Spark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={cn("size-3", className)}
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M8 0c.4 3.2 1.6 5.2 4.8 5.8C9.6 6.4 8.4 8.4 8 11.6 7.6 8.4 6.4 6.4 3.2 5.8 6.4 5.2 7.6 3.2 8 0Z" />
+    </svg>
+  );
+}
+
+export function SparkBurst({ className }: { className?: string }) {
+  return (
+    <span className={cn("pointer-events-none absolute inset-0", className)} aria-hidden>
+      <Spark className="absolute -left-1.5 top-1 size-2.5 text-primary opacity-80" />
+      <Spark className="absolute -right-2 top-0 size-2 text-primary/70" />
+      <Spark className="absolute -right-1 bottom-1 size-2.5 text-zen-e" />
+      <Spark className="absolute left-0 bottom-0 size-1.5 text-primary/60" />
+    </span>
+  );
+}

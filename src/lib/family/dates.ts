@@ -47,6 +47,21 @@ export function formatTime(hhmm: string): string {
   return `${Number(h)}h${m && m !== "00" ? m : ""}`;
 }
 
+/** Horloge type 08:30 — visuel accueil. */
+export function formatClock(hhmm: string): string {
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":");
+  return `${String(Number(h)).padStart(2, "0")}:${(m ?? "00").padStart(2, "0")}`;
+}
+
+/** « Demain », « Lundi », « Aujourd'hui » */
+export function relativeDayLabel(dateISO: string, from = new Date()): string {
+  const days = daysUntil(parseDate(dateISO), from);
+  if (days === 0) return "Aujourd'hui";
+  if (days === 1) return "Demain";
+  return capitalize(format(parseDate(dateISO), "EEEE", { locale: fr }));
+}
+
 export function formatTimeRange(start: string, end: string, allDay?: boolean): string {
   if (allDay) return "Toute la journée";
   if (start && end) return `${formatTime(start)} – ${formatTime(end)}`;
