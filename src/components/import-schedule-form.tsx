@@ -235,11 +235,16 @@ export function ImportScheduleForm({
         );
         return;
       }
-      toast.error(
-        "Rien détecté. Collez le tableau (Horaire / Cours / Prof), ou une photo nette.",
+      toast.message(
+        "Pas d'horaires auto — indiquez début et fin d'école, puis confirmez.",
       );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Analyse impossible");
+    } catch {
+      // Pas de message technique (quota, API…) — on continue en mode manuel
+      if (preview || opts.imageDataUrl) {
+        toast.message("Photo OK — indiquez les heures d'école puis confirmez");
+      } else {
+        toast.message("Saisissez les heures à la main, ou réessayez plus tard");
+      }
     } finally {
       setBusy(false);
       setBusyLabel("");
@@ -307,8 +312,8 @@ export function ImportScheduleForm({
         label: imageDataUrl ? "Photo" : "Fichier",
         merge,
       });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Fichier illisible");
+    } catch {
+      toast.message("Fichier non lu — réessayez ou saisissez les heures à la main");
     } finally {
       setBusy(false);
       setBusyLabel("");
@@ -475,7 +480,7 @@ export function ImportScheduleForm({
       );
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+      toast.error("Enregistrement impossible — réessayez");
     }
   }
 
@@ -632,6 +637,32 @@ export function ImportScheduleForm({
       }
     >
       <div className="flex flex-col gap-4">
+        {/* Inputs toujours montés : caméra + galerie */}
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="sr-only"
+          tabIndex={-1}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void analyzeFile(f);
+            e.target.value = "";
+          }}
+        />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,image/jpeg,image/png,image/webp,image/heic,.jpg,.jpeg,.png,.webp"
+          className="sr-only"
+          tabIndex={-1}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void analyzeFile(f);
+            e.target.value = "";
+          }}
+        />
         {members.length === 0 ? (
           <p className="rounded-xl bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">
             Ajoutez d'abord un membre de la famille.
@@ -671,6 +702,14 @@ export function ImportScheduleForm({
                 alt="Planning scolaire"
                 className="max-h-72 w-full object-contain"
               />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => cameraRef.current?.click()}>
+                📷 Reprendre
+              </Button>
+              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
+                🖼️ Autre image (galerie)
+              </Button>
             </div>
 
             <Field label="Nom">
@@ -900,17 +939,6 @@ export function ImportScheduleForm({
                 Ajouter un cours
               </Button>
             </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,image/jpeg,image/png,image/webp,image/heic,application/pdf,.pdf,.txt,text/plain"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void analyzeFile(f, true);
-                e.target.value = "";
-              }}
-            />
           </div>
         ) : shownPending?.length ? (
           <div className="flex flex-col gap-3">
@@ -939,29 +967,6 @@ export function ImportScheduleForm({
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2">
-              <input
-                ref={cameraRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void analyzeFile(f);
-                  e.target.value = "";
-                }}
-              />
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,image/jpeg,image/png,image/webp,image/heic,application/pdf,.pdf,.txt,text/plain"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void analyzeFile(f);
-                  e.target.value = "";
-                }}
-              />
               <button
                 type="button"
                 onClick={() => cameraRef.current?.click()}
@@ -969,18 +974,18 @@ export function ImportScheduleForm({
                 className="flex min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-[1.35rem] bg-primary/10 px-3 py-3 text-primary tap"
               >
                 <Camera className="size-6" />
-                <span className="font-display text-sm font-extrabold">Photo</span>
-                <span className="text-[11px] font-semibold text-primary/80">Appareil ou capture</span>
+                <span className="font-display text-sm font-extrabold">Prendre une photo</span>
+                <span className="text-[11px] font-semibold text-primary/80">Caméra</span>
               </button>
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={busy}
-                className="flex min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-[1.35rem] bg-surface-2 px-3 py-3 text-ink tap"
+                className="flex min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-[1.35rem] bg-surface-2 px-3 py-3 text-ink tap ring-2 ring-primary/20"
               >
                 <ImagePlus className="size-6 text-primary" />
                 <span className="font-display text-sm font-extrabold">Galerie</span>
-                <span className="text-[11px] font-semibold text-muted">Image ou PDF</span>
+                <span className="text-[11px] font-semibold text-muted">Choisir une image</span>
               </button>
             </div>
 

@@ -74,6 +74,22 @@ export function PlanningTimeline() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="rounded-2xl bg-primary/8 px-3.5 py-3">
+        <p className="font-display text-[1.05rem] font-extrabold text-ink">Agenda familial</p>
+        <p className="mt-0.5 text-[12px] font-semibold text-muted">
+          Toute la famille sur un seul calendrier. Les photos d’école sont dans{" "}
+          <button
+            type="button"
+            className="font-extrabold text-primary underline-offset-2 hover:underline"
+            onClick={() => {
+              window.location.href = "/plannings";
+            }}
+          >
+            École
+          </button>
+          .
+        </p>
+      </div>
       <header className="flex items-center justify-between">
         <button
           type="button"

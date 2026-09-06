@@ -631,6 +631,7 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
     photo: existing?.photo ?? null,
   }));
   const photoRef = useRef<HTMLInputElement>(null);
+  const photoCameraRef = useRef<HTMLInputElement>(null);
 
   function toggleDay(d: number) {
     setDraft((prev) => ({
@@ -775,8 +776,7 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
           <input
             ref={photoRef}
             type="file"
-            accept="image/*"
-            capture="environment"
+            accept="image/*,image/jpeg,image/png,image/webp,image/heic"
             className="hidden"
             onChange={async (e) => {
               const f = e.target.files?.[0];
@@ -788,14 +788,37 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
               } catch {
                 toast.error("Photo illisible");
               }
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={photoCameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              try {
+                const dataUrl = await fileToStoredDataUrl(f);
+                setDraft((d) => ({ ...d, photo: dataUrl }));
+                toast.success("Photo prise — vous pouvez encore tout modifier");
+              } catch {
+                toast.error("Photo illisible");
+              }
+              e.target.value = "";
             }}
           />
           {draft.photo ? (
             <div className="space-y-2">
               <img src={draft.photo} alt="" className="max-h-40 w-full rounded-xl object-contain bg-surface-2" />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => photoCameraRef.current?.click()}>
+                  📷 Prendre
+                </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => photoRef.current?.click()}>
-                  Changer
+                  🖼️ Galerie
                 </Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setDraft((d) => ({ ...d, photo: null }))}>
                   Retirer
@@ -803,9 +826,14 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
               </div>
             </div>
           ) : (
-            <Button type="button" variant="outline" onClick={() => photoRef.current?.click()}>
-              📷 Ajouter une photo
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" onClick={() => photoCameraRef.current?.click()}>
+                📷 Prendre une photo
+              </Button>
+              <Button type="button" variant="outline" onClick={() => photoRef.current?.click()}>
+                🖼️ Choisir dans la galerie
+              </Button>
+            </div>
           )}
         </Field>
         <Field label="Notes">
@@ -1256,6 +1284,7 @@ function ScheduleForm({
   const [slots, setSlots] = useState<ScheduleSlot[]>(existing?.slots ?? []);
   const [photo, setPhoto] = useState<string | null>(existing?.photo ?? null);
   const schedulePhotoRef = useRef<HTMLInputElement>(null);
+  const scheduleCameraRef = useRef<HTMLInputElement>(null);
   const [day, setDay] = useState(1);
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
@@ -1353,6 +1382,24 @@ function ScheduleForm({
           <input
             ref={schedulePhotoRef}
             type="file"
+            accept="image/*,image/jpeg,image/png,image/webp,image/heic"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              try {
+                const dataUrl = await fileToStoredDataUrl(f);
+                setPhoto(dataUrl);
+                toast.success("Photo de la galerie ajoutée — modifiez les horaires si besoin");
+              } catch {
+                toast.error("Photo illisible");
+              }
+              e.target.value = "";
+            }}
+          />
+          <input
+            ref={scheduleCameraRef}
+            type="file"
             accept="image/*"
             capture="environment"
             className="hidden"
@@ -1362,18 +1409,22 @@ function ScheduleForm({
               try {
                 const dataUrl = await fileToStoredDataUrl(f);
                 setPhoto(dataUrl);
-                toast.success("Photo ajoutée — ajoutez ou modifiez les horaires ci-dessous");
+                toast.success("Photo prise — modifiez les horaires si besoin");
               } catch {
                 toast.error("Photo illisible");
               }
+              e.target.value = "";
             }}
           />
           {photo ? (
             <div className="space-y-2">
               <img src={photo} alt="" className="max-h-48 w-full rounded-xl object-contain bg-surface-2" />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => scheduleCameraRef.current?.click()}>
+                  📷 Prendre
+                </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => schedulePhotoRef.current?.click()}>
-                  Changer la photo
+                  🖼️ Galerie
                 </Button>
                 <Button type="button" variant="ghost" size="sm" onClick={() => setPhoto(null)}>
                   Retirer
@@ -1381,9 +1432,14 @@ function ScheduleForm({
               </div>
             </div>
           ) : (
-            <Button type="button" variant="outline" onClick={() => schedulePhotoRef.current?.click()}>
-              📷 Intégrer une photo
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" onClick={() => scheduleCameraRef.current?.click()}>
+                📷 Prendre une photo
+              </Button>
+              <Button type="button" variant="outline" onClick={() => schedulePhotoRef.current?.click()}>
+                🖼️ Choisir dans la galerie
+              </Button>
+            </div>
           )}
         </Field>
         <div className="rounded-2xl bg-surface-2 p-3">

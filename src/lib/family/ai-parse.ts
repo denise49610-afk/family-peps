@@ -141,7 +141,8 @@ export const extractScheduleFn = createServerFn({ method: "POST" })
           grokDisabledUntil = Date.now() + 15 * 60_000;
           return { ok: false, error: "unavailable" };
         }
-        return { ok: false, error: `xAI API error ${res.status}` };
+        // Ne jamais exposer quota / crédits / erreurs techniques à l'utilisateur
+        return { ok: false, error: "unavailable" };
       }
       const body = (await res.json()) as {
         choices?: { message?: { content?: string } }[];
@@ -153,7 +154,11 @@ export const extractScheduleFn = createServerFn({ method: "POST" })
     } catch (err) {
       const msg = err instanceof Error ? err.message : "ai-error";
       if (/timeout|abort/i.test(msg)) return { ok: false, error: "timeout" };
-      return { ok: false, error: msg };
+      // Masquer quota, spending-limit, network, etc.
+      if (/quota|exceed|credit|spending|limit|403|429|fetch|network/i.test(msg)) {
+        return { ok: false, error: "unavailable" };
+      }
+      return { ok: false, error: "unavailable" };
     }
   });
 
@@ -222,7 +227,7 @@ export async function parseScheduleWithAi(input: {
         };
       }
     } catch {
-      // IA optionnelle
+      // IA optionnelle — échec silencieux (quota, réseau…)
     }
   }
 

@@ -26,7 +26,7 @@ type NavItem = { to: string; label: string; icon: LucideIcon };
 
 const PRIMARY: NavItem[] = [
   { to: "/", label: "Accueil", icon: Home },
-  { to: "/calendrier", label: "Planning", icon: CalendarDays },
+  { to: "/calendrier", label: "Agenda", icon: CalendarDays },
   { to: "/taches", label: "Tâches", icon: CheckSquare },
   { to: "/notes", label: "Chat", icon: MessageCircle },
 ];

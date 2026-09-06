@@ -35,8 +35,8 @@ export const Route = createFileRoute("/")({ component: Home });
 const QUICK = [
   {
     to: "/calendrier",
-    label: "Planning",
-    sub: "d'aujourd'hui",
+    label: "Agenda",
+    sub: "vue famille",
     icon: CalendarDays,
     bg: "bg-tile-purple",
     fg: "text-tile-purple-fg",

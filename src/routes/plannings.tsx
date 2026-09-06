@@ -25,7 +25,7 @@ function PlanningsPage() {
     <div>
       <PageHeader
         title="École"
-        subtitle="Chacun son planning, séparé du calendrier familial. Photo en grand + horaires du jour."
+        subtitle="Photos d’emploi du temps + heures de début/fin. L’agenda familial (toute la famille) est dans l’onglet Agenda."
         action={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => open({ type: "import-schedule" })}>
