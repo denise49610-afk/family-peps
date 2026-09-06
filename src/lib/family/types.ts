@@ -172,13 +172,24 @@ export type FamilyTask = {
   attachmentIds: string[];
 };
 
+/** Horaires d'une activité pour un jour précis (ex. Lun 18h, Mar 17h30). */
+export type ActivityDaySlot = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+};
+
 export type Activity = {
   id: string;
   name: string;
   memberIds: string[];
+  /** Jours où l'activité a lieu (dérivé de daySlots si présent). */
   weekdays: number[];
+  /** Horaires par défaut (si un jour n'a pas d'entrée dans daySlots). */
   startTime: string;
   endTime: string;
+  /** Horaires par jour — permet Lun ≠ Mar ≠ Mer. */
+  daySlots?: ActivityDaySlot[];
   location: string;
   contactName: string;
   contactPhone: string;

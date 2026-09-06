@@ -47,12 +47,14 @@ export function formatTime(hhmm: string): string {
   return `${Number(h)}h${m && m !== "00" ? m : ""}`;
 }
 
+/** Horloge type 08:30 — visuel accueil. */
 export function formatClock(hhmm: string): string {
   if (!hhmm) return "";
   const [h, m] = hhmm.split(":");
   return `${String(Number(h)).padStart(2, "0")}:${(m ?? "00").padStart(2, "0")}`;
 }
 
+/** « Demain », « Lundi », « Aujourd'hui » */
 export function relativeDayLabel(dateISO: string, from = new Date()): string {
   const days = daysUntil(parseDate(dateISO), from);
   if (days === 0) return "Aujourd'hui";
@@ -80,10 +82,47 @@ export function minutesBetween(start: string, end: string): number {
   return eh * 60 + em - (sh * 60 + sm);
 }
 
+export function overlaps(
+  aStart: string,
+  aEnd: string,
+  bStart: string,
+  bEnd: string,
+): boolean {
+  const as = timeToMinutes(aStart);
+  const ae = timeToMinutes(aEnd || aStart);
+  const bs = timeToMinutes(bStart);
+  const be = timeToMinutes(bEnd || bStart);
+  return as < be && bs < ae;
+}
+
+export function timeToMinutes(hhmm: string): number {
+  const [h, m] = (hhmm || "00:00").split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+export function ageOn(birthISO: string, on = new Date()): number | null {
+  if (!birthISO) return null;
+  const birth = parseISO(birthISO);
+  if (Number.isNaN(birth.getTime())) return null;
+  let age = on.getFullYear() - birth.getFullYear();
+  const hadBirthday =
+    on.getMonth() > birth.getMonth() ||
+    (on.getMonth() === birth.getMonth() && on.getDate() >= birth.getDate());
+  if (!hadBirthday) age -= 1;
+  return age;
+}
+
+export function nextBirthday(birthISO: string, from = new Date()): Date | null {
+  if (!birthISO) return null;
+  const birth = parseISO(birthISO);
+  if (Number.isNaN(birth.getTime())) return null;
+  const thisYear = new Date(from.getFullYear(), birth.getMonth(), birth.getDate());
+  if (thisYear >= startOfDay(from)) return thisYear;
+  return new Date(from.getFullYear() + 1, birth.getMonth(), birth.getDate());
+}
+
 export function daysUntil(date: Date, from = new Date()): number {
-  const a = startOfDay(from);
-  const b = startOfDay(date);
-  return Math.round((b.getTime() - a.getTime()) / 86400000);
+  return differenceInCalendarDays(startOfDay(date), startOfDay(from));
 }
 
 export const WEEKDAYS_FR = [
@@ -128,6 +167,8 @@ export function recurrenceDates(
   const rangeEnd = startOfDay(endBound);
   let guard = 0;
 
+  // Weekly + plusieurs jours (ex. Mar + Jeu) : avancer jour par jour.
+  // Un saut de 7 jours ne touche qu'un seul jour de la semaine.
   if (recurrence.freq === "weekly" && recurrence.byWeekday && recurrence.byWeekday.length > 0) {
     let cursor = start < rangeStart ? rangeStart : start;
     while (cursor <= rangeEnd && guard < 800) {

@@ -137,15 +137,29 @@ export function expandActivity(
   to: Date,
   members: FamilyMember[],
 ): Occurrence[] {
-  // Aucun jour sélectionné = aucune occurrence (évite d'afficher partout)
-  if (!activity.weekdays?.length) return [];
+  const dayMap = new Map<number, { startTime: string; endTime: string }>();
+  if (activity.daySlots?.length) {
+    for (const s of activity.daySlots) {
+      dayMap.set(s.dayOfWeek, { startTime: s.startTime, endTime: s.endTime });
+    }
+  } else if (activity.weekdays?.length) {
+    for (const d of activity.weekdays) {
+      dayMap.set(d, {
+        startTime: activity.startTime || "15:00",
+        endTime: activity.endTime || "17:00",
+      });
+    }
+  }
+  if (dayMap.size === 0) return [];
+
   const first = members.find((m) => activity.memberIds.includes(m.id));
   const occ: Occurrence[] = [];
   let cursor = startOfDay(from);
   const end = startOfDay(to);
   while (cursor <= end) {
     const dow = getDay(cursor);
-    if (activity.weekdays.includes(dow)) {
+    const slot = dayMap.get(dow);
+    if (slot) {
       const date = toISODate(cursor);
       occ.push({
         id: `act:${activity.id}:${date}`,
@@ -153,8 +167,8 @@ export function expandActivity(
         sourceId: activity.id,
         title: activity.name,
         date,
-        startTime: activity.startTime,
-        endTime: activity.endTime,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
         allDay: false,
         location: activity.location,
         description: activity.notes,

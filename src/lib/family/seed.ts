@@ -16,7 +16,10 @@ export function defaultCategories(): Category[] {
   ];
 }
 
-/** App vide : rien d'inventé. */
+/**
+ * App vide : rien d'inventé.
+ * L'utilisateur ajoute sa famille et ses vrais plannings, RDV, activités, tâches.
+ */
 export function createSeedState(): FamilyState {
   return {
     settings: {
@@ -45,6 +48,7 @@ export function createSeedState(): FamilyState {
   };
 }
 
+/** Alias : plus de démo préremplie. */
 export function createShowcaseState(): FamilyState {
   return createSeedState();
 }

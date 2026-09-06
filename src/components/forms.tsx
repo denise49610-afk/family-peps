@@ -20,6 +20,7 @@ import {
   MEMBER_ROLES,
   NONE_RECURRENCE,
   type Activity,
+  type ActivityDaySlot,
   type FamilyContact,
   type FamilyEvent,
   type FamilyMember,
@@ -616,30 +617,65 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
   const updateActivity = useFamilyStore((s) => s.updateActivity);
   const removeActivity = useFamilyStore((s) => s.removeActivity);
   const existing = activities.find((a) => a.id === id);
-  const [draft, setDraft] = useState<Omit<Activity, "id">>(() => ({
-    name: existing?.name ?? "",
-    memberIds: existing?.memberIds ?? [],
-    weekdays: existing?.weekdays ?? [3],
-    startTime: existing?.startTime ?? "15:00",
-    endTime: existing?.endTime ?? "17:00",
-    location: existing?.location ?? "",
-    contactName: existing?.contactName ?? "",
-    contactPhone: existing?.contactPhone ?? "",
-    notes: existing?.notes ?? "",
-    categoryId: existing?.categoryId ?? CAT.sport,
-    attachmentIds: existing?.attachmentIds ?? [],
-    photo: existing?.photo ?? null,
-  }));
+  const [draft, setDraft] = useState<Omit<Activity, "id">>(() => {
+    const weekdays = existing?.weekdays ?? [2, 4];
+    const daySlots: ActivityDaySlot[] =
+      existing?.daySlots?.length
+        ? existing.daySlots
+        : weekdays.map((d) => ({
+            dayOfWeek: d,
+            startTime: existing?.startTime ?? "18:00",
+            endTime: existing?.endTime ?? "19:30",
+          }));
+    return {
+      name: existing?.name ?? "",
+      memberIds: existing?.memberIds ?? [],
+      weekdays: daySlots.map((s) => s.dayOfWeek),
+      startTime: existing?.startTime ?? "18:00",
+      endTime: existing?.endTime ?? "19:30",
+      daySlots,
+      location: existing?.location ?? "",
+      contactName: existing?.contactName ?? "",
+      contactPhone: existing?.contactPhone ?? "",
+      notes: existing?.notes ?? "",
+      categoryId: existing?.categoryId ?? CAT.sport,
+      attachmentIds: existing?.attachmentIds ?? [],
+      photo: existing?.photo ?? null,
+    };
+  });
   const photoRef = useRef<HTMLInputElement>(null);
   const photoCameraRef = useRef<HTMLInputElement>(null);
 
   function toggleDay(d: number) {
-    setDraft((prev) => ({
-      ...prev,
-      weekdays: prev.weekdays.includes(d)
-        ? prev.weekdays.filter((x) => x !== d)
-        : [...prev.weekdays, d],
-    }));
+    setDraft((prev) => {
+      const slots = prev.daySlots ?? [];
+      const has = slots.some((s) => s.dayOfWeek === d);
+      const daySlots = has
+        ? slots.filter((s) => s.dayOfWeek !== d)
+        : [
+            ...slots,
+            {
+              dayOfWeek: d,
+              startTime: prev.startTime || "18:00",
+              endTime: prev.endTime || "19:30",
+            },
+          ].sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+      return {
+        ...prev,
+        daySlots,
+        weekdays: daySlots.map((s) => s.dayOfWeek),
+      };
+    });
+  }
+
+  function setDayTime(d: number, field: "startTime" | "endTime", value: string) {
+    setDraft((prev) => {
+      const slots = [...(prev.daySlots ?? [])];
+      const i = slots.findIndex((s) => s.dayOfWeek === d);
+      if (i < 0) return prev;
+      slots[i] = { ...slots[i], [field]: value };
+      return { ...prev, daySlots: slots };
+    });
   }
 
   function save() {
@@ -647,8 +683,9 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
       toast.error("Nommez l'activité");
       return;
     }
-    if (!draft.weekdays.length) {
-      toast.error("Choisissez au moins un jour (ex. Mar et Jeu)");
+    const daySlots = (draft.daySlots ?? []).filter((s) => s.startTime && s.endTime);
+    if (!daySlots.length) {
+      toast.error("Activez au moins un jour et ses horaires");
       return;
     }
     if (!draft.memberIds.length) {
@@ -658,16 +695,22 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
     const payload = {
       ...draft,
       name: draft.name.trim(),
-      startTime: draft.startTime || "15:00",
-      endTime: draft.endTime || "17:00",
+      daySlots,
+      weekdays: daySlots.map((s) => s.dayOfWeek),
+      startTime: daySlots[0]?.startTime || "18:00",
+      endTime: daySlots[0]?.endTime || "19:30",
     };
     try {
       if (existing) updateActivity(existing.id, payload);
       else addActivity(payload);
-      toast.success(existing ? "Activité mise à jour" : "Activité créée — elle apparaît dans le calendrier");
+      toast.success(
+        existing
+          ? "Activité mise à jour"
+          : "Activité créée — chaque jour avec ses horaires dans l'agenda",
+      );
       onClose();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+    } catch {
+      toast.error("Enregistrement impossible — réessayez");
     }
   }
 
@@ -713,44 +756,56 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
             multiple
           />
         </Field>
-        <Field label="Jours">
-          <div className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5, 6, 0].map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => toggleDay(d)}
-                className="rounded-full px-3 py-2 text-sm font-semibold"
-                style={{
-                  backgroundColor: draft.weekdays.includes(d)
-                    ? "var(--color-accent)"
-                    : "var(--color-surface-2)",
-                  color: draft.weekdays.includes(d)
-                    ? "var(--color-accent-fg)"
-                    : "var(--color-ink)",
-                }}
-              >
-                {weekdayLabel(d, true)}
-              </button>
-            ))}
+        <Field label="Jours & horaires (chaque jour peut être différent)">
+          <p className="mb-2 text-[11px] font-semibold text-muted">
+            Cochez un jour, puis réglez son heure. Ex. Lun 18h00 · Mar 17h30 · Jeu 18h00
+          </p>
+          <div className="flex flex-col gap-2">
+            {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+              const slot = (draft.daySlots ?? []).find((s) => s.dayOfWeek === d);
+              const on = Boolean(slot);
+              return (
+                <div
+                  key={d}
+                  className="rounded-2xl px-3 py-2.5"
+                  style={{
+                    backgroundColor: on ? "var(--color-accent)" : "var(--color-surface-2)",
+                    color: on ? "var(--color-accent-fg)" : "var(--color-ink)",
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleDay(d)}
+                      className="min-w-[3.2rem] rounded-full bg-white/25 px-2.5 py-1 text-sm font-extrabold"
+                    >
+                      {weekdayLabel(d, true)}
+                    </button>
+                    {on && slot ? (
+                      <div className="flex flex-1 flex-wrap items-center gap-2">
+                        <Input
+                          type="time"
+                          value={slot.startTime}
+                          onChange={(e) => setDayTime(d, "startTime", e.target.value)}
+                          className="max-w-[7.5rem] bg-white text-ink"
+                        />
+                        <span className="text-xs font-bold opacity-80">→</span>
+                        <Input
+                          type="time"
+                          value={slot.endTime}
+                          onChange={(e) => setDayTime(d, "endTime", e.target.value)}
+                          className="max-w-[7.5rem] bg-white text-ink"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-xs font-semibold opacity-70">Appuyer pour activer</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Début">
-            <Input
-              type="time"
-              value={draft.startTime}
-              onChange={(e) => setDraft({ ...draft, startTime: e.target.value })}
-            />
-          </Field>
-          <Field label="Fin">
-            <Input
-              type="time"
-              value={draft.endTime}
-              onChange={(e) => setDraft({ ...draft, endTime: e.target.value })}
-            />
-          </Field>
-        </div>
         <Field label="Lieu">
           <Input
             value={draft.location}
