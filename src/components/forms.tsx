@@ -644,10 +644,28 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
       toast.error("Nommez l'activité");
       return;
     }
-    if (existing) updateActivity(existing.id, draft);
-    else addActivity(draft);
-    toast.success(existing ? "Activité mise à jour" : "Activité créée — elle apparaît dans le calendrier");
-    onClose();
+    if (!draft.weekdays.length) {
+      toast.error("Choisissez au moins un jour (ex. Mar et Jeu)");
+      return;
+    }
+    if (!draft.memberIds.length) {
+      toast.error("Indiquez qui participe à l'activité");
+      return;
+    }
+    const payload = {
+      ...draft,
+      name: draft.name.trim(),
+      startTime: draft.startTime || "15:00",
+      endTime: draft.endTime || "17:00",
+    };
+    try {
+      if (existing) updateActivity(existing.id, payload);
+      else addActivity(payload);
+      toast.success(existing ? "Activité mise à jour" : "Activité créée — elle apparaît dans le calendrier");
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
+    }
   }
 
   return (
@@ -670,10 +688,10 @@ function ActivityForm({ id, onClose }: { id?: string; onClose: () => void }) {
               Supprimer
             </Button>
           ) : null}
-          <Button variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={onClose}>
             Annuler
           </Button>
-          <Button onClick={save}>Enregistrer</Button>
+          <Button type="button" onClick={save}>Enregistrer</Button>
         </>
       }
     >

@@ -106,12 +106,25 @@ function Home() {
   );
   const todayOcc = occ.filter((o) => o.date === today && o.sourceType !== "schedule");
   const tasks = tasksAll.filter((t) => t.status !== "done");
-  const upcoming = occ.filter((o) => {
-    if (o.date < today) return false;
-    if (o.date === today) return false;
-    if (doneKeys.includes(o.id)) return false;
-    return o.reminderMinutes != null || o.sourceType === "event";
-  }).slice(0, 4);
+  // Rappels = uniquement les 7 prochains jours (semaine courante + proche)
+  const weekEnd = (() => {
+    const d = addDays(now, 6);
+    return d.toISOString().slice(0, 10);
+  })();
+  const upcoming = occ
+    .filter((o) => {
+      if (o.date < today) return false;
+      if (o.date > weekEnd) return false; // hors semaine
+      if (doneKeys.includes(o.id)) return false;
+      // Aujourd'hui + rappels / événements / activités de la semaine
+      return (
+        o.reminderMinutes != null ||
+        o.sourceType === "event" ||
+        o.sourceType === "activity"
+      );
+    })
+    .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime))
+    .slice(0, 8);
 
   const conflicts = useMemo(
     () => detectConflicts(occ.filter((o) => o.date === today)),

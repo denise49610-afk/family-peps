@@ -258,10 +258,30 @@ export function ImportScheduleForm({
         imageDataUrl = await fileToStoredDataUrl(file);
         setPreview(imageDataUrl);
         setPhotoMode(true);
-        setSlots([]); // pas de cours individuels par défaut
+        setSlots(null);
         setPending(null);
-        toast.success("Photo prête — indiquez les heures d'école puis confirmez");
-        return; // pas d'analyse IA automatique de tous les cours
+        setBusyLabel("Lecture des horaires sur la photo…");
+        toast.message("Lecture de la photo…");
+        try {
+          const ai = await parseScheduleWithAi({ imageDataUrl: await imageDataUrlForAi(imageDataUrl) });
+          if (ai.ok && ai.slots.length) {
+            const starts = ai.slots.map((s) => s.startTime).filter(Boolean).sort();
+            const ends = ai.slots.map((s) => s.endTime).filter(Boolean).sort();
+            if (starts[0]) setSchoolStart(starts[0]);
+            if (ends.length) setSchoolEnd(ends[ends.length - 1]);
+            // Jours détectés sur la photo
+            const days = [...new Set(ai.slots.map((s) => s.dayOfWeek).filter((d) => d >= 0 && d <= 6))];
+            if (days.length) setSchoolDays(days.sort((a, b) => a - b));
+            toast.success(
+              `Horaires détectés : ${starts[0] || "?"} → ${ends[ends.length - 1] || "?"} — confirmez`,
+            );
+          } else {
+            toast.success("Photo prête — vérifiez les heures puis confirmez");
+          }
+        } catch {
+          toast.success("Photo prête — vérifiez les heures puis confirmez");
+        }
+        return;
       } else if (isPdf) {
         extracted = extractPdfStrings(await file.arrayBuffer());
         if (extracted) setText(extracted);
@@ -421,29 +441,42 @@ export function ImportScheduleForm({
 
   /** Photo + horaires début/fin uniquement — pas tous les cours dans le planning. */
   function confirmPhotoSimple() {
-    if (!owner) {
-      toast.error("Choisissez un élève");
+    const memberId = owner || members.find((m) => m.role === "enfant")?.id || members[0]?.id || "";
+    if (!memberId) {
+      toast.error("Ajoutez d'abord un membre (élève) dans la famille");
       return;
     }
-    if (!preview && !slots?.length) {
+    if (!preview) {
       toast.error("Ajoutez une photo du planning");
       return;
     }
-    if (!schoolDays.length) {
-      toast.error("Choisissez au moins un jour");
-      return;
+    const days = schoolDays.length ? schoolDays : [1, 2, 3, 4, 5];
+    const start = schoolStart || "08:30";
+    const end = schoolEnd || "16:30";
+    const member = members.find((m) => m.id === memberId);
+    const daySlots = days.map((d) => ({
+      id: uid("slot"),
+      dayOfWeek: d,
+      startTime: start,
+      endTime: end,
+      subject: "École",
+      room: "",
+      teacher: "",
+    }));
+    try {
+      upsertScheduleForMember({
+        memberId,
+        name: (name.trim() || `École — ${member?.firstName ?? ""}`).trim(),
+        slots: daySlots,
+        photo: preview,
+      });
+      toast.success(
+        `Enregistré pour ${member?.firstName ?? "l'élève"} · ${start}–${end}`,
+      );
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Enregistrement impossible");
     }
-    const member = members.find((m) => m.id === owner);
-    upsertScheduleForMember({
-      memberId: owner,
-      name: (name.trim() || `École — ${member?.firstName ?? ""}`).trim(),
-      slots: buildSchoolDaySlots(),
-      photo: preview,
-    });
-    toast.success(
-      `Photo enregistrée pour ${member?.firstName ?? "l'élève"} · école ${schoolStart}–${schoolEnd}`,
-    );
-    onClose();
   }
 
   function confirm() {
@@ -548,7 +581,7 @@ export function ImportScheduleForm({
               ✓ Confirmer la photo
             </Button>
           </>
-        ) : slots !== null ? (
+        ) : !photoMode && slots !== null ? (
           <>
             <Button
               variant="ghost"
@@ -722,7 +755,7 @@ export function ImportScheduleForm({
               </Button>
             </details>
           </div>
-        ) : slots !== null ? (
+        ) : !photoMode && slots !== null ? (
           <div className="flex flex-col gap-3">
             {/* Confirmation directe — bien visible dès l'analyse photo */}
             <div className="sticky top-0 z-10 -mx-1 rounded-2xl border border-primary/20 bg-primary/10 p-3 shadow-sm backdrop-blur">
