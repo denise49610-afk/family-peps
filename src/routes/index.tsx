@@ -18,6 +18,7 @@ import { useMemo, useRef } from "react";
 import { memberTone, Spark } from "@/components/brand";
 import { useEditors } from "@/components/editors-context";
 import { MemberAvatar } from "@/components/member-avatar";
+import { AiCoordinatorCard } from "@/components/ai-coordinator-card";
 import { detectConflicts, expandRange } from "@/lib/family/expand";
 import {
   formatClock,
@@ -236,6 +237,8 @@ function Home() {
           </span>
         </button>
       </section>
+
+      <AiCoordinatorCard />
 
       {conflicts.length > 0 ? (
         <p className="rounded-2xl bg-member-jaune-soft px-4 py-3 text-sm font-bold text-member-jaune-fg">
