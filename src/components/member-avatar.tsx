@@ -12,11 +12,11 @@ const SIZES = {
 } as const;
 
 const EMOJI_SIZES = {
-  xs: "text-sm",
-  sm: "text-base",
-  md: "text-xl",
-  lg: "text-3xl",
-  xl: "text-5xl",
+  xs: "text-xs",
+  sm: "text-sm",
+  md: "text-base",
+  lg: "text-2xl",
+  xl: "text-4xl",
 } as const;
 
 export function initialsOf(member: Pick<FamilyMember, "firstName" | "lastName" | "nickname">) {
@@ -59,7 +59,10 @@ export function MemberAvatar({
           className="size-full object-cover outline outline-1 -outline-offset-1 outline-ink/10"
         />
       ) : emoji ? (
-        <span className={cn("leading-none", EMOJI_SIZES[size])} aria-hidden>
+        <span
+          className={cn("flex size-full items-center justify-center leading-none", EMOJI_SIZES[size])}
+          aria-hidden
+        >
           {emoji}
         </span>
       ) : (

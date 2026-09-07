@@ -42,14 +42,14 @@ function ColorPicker({
   onChange: (c: MemberColor) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
       {MEMBER_COLORS.map((c) => (
         <button
           key={c}
           type="button"
           aria-label={c}
           onClick={() => onChange(c)}
-          className="size-8 rounded-full tap"
+          className="aspect-square w-full rounded-full tap"
           style={{
             backgroundColor: memberTone(c),
             boxShadow: value === c ? `0 0 0 3px ${memberTone(c, "soft")}, 0 0 0 5px ${memberTone(c)}` : undefined,
