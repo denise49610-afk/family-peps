@@ -16,7 +16,7 @@ export function defaultCategories(): Category[] {
   ];
 }
 
-/** App vide : rien d'inventé. L'utilisateur ajoute sa famille et ses vrais plannings. */
+/** App vide : rien d'inventé. */
 export function createSeedState(): FamilyState {
   return {
     settings: {
@@ -30,6 +30,7 @@ export function createSeedState(): FamilyState {
       weekStartsOn: 1,
       familyCode: "",
       cloudSync: false,
+      completedKeys: [],
     },
     categories: defaultCategories(),
     members: [],
@@ -42,4 +43,8 @@ export function createSeedState(): FamilyState {
     infos: [],
     contacts: [],
   };
+}
+
+export function createShowcaseState(): FamilyState {
+  return createSeedState();
 }
