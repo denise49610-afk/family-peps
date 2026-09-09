@@ -110,19 +110,33 @@ async function createPgliteSql(): Promise<Sql> {
   // One in-memory instance per process, shared across HMR module instances, so
   // data survives source edits (it resets on dev-server restart).
   globalRef.__pgliteInstance__ ??= (async () => {
-    const { PGlite } = await import("@electric-sql/pglite");
-    const pg = new PGlite({
-      parsers: {
-        [OID_INT8]: Number,
-        [OID_DATE]: identity,
-        [OID_INTERVAL]: identity,
-      },
-    });
-    await pg.waitReady;
-    await pg.exec(
-      "create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())",
-    );
-    return pg;
+    try {
+      const { PGlite } = await import("@electric-sql/pglite");
+      const pg = new PGlite({
+        parsers: {
+          [OID_INT8]: Number,
+          [OID_DATE]: identity,
+          [OID_INTERVAL]: identity,
+        },
+      });
+      await pg.waitReady;
+      await pg.exec(
+        "create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())",
+      );
+      return pg;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/ENOENT|pglite\.data|no such file/i.test(msg)) {
+        throw new Error(
+          "Base de données non configurée pour le partage. " +
+            "Ajoutez DATABASE_URL (Neon Postgres) dans les variables d'environnement Vercel, " +
+            "puis redéployez. PGLite ne fonctionne pas sur Vercel serverless. " +
+            "Détail: " +
+            msg,
+        );
+      }
+      throw err;
+    }
   })().catch((err) => {
     globalRef.__pgliteInstance__ = undefined;
     throw err;
