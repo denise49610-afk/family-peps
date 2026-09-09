@@ -86,6 +86,28 @@ function isChild(m: FamilyMember): boolean {
   return m.role === "enfant";
 }
 
+/** RDV où un enfant a besoin d'être accompagné par un adulte. */
+const NEEDS_ESCORT =
+  /ophtalmo|dentiste|m[eé]decin|docteur|orthodont|p[eé]diatre|h[oô]pital|labo|vaccin|kin[eé]|psy|orl|radiologie|analyse|prise de sang|urgence|contr[oô]le|rdv/i;
+
+function needsEscort(o: Occurrence): boolean {
+  return NEEDS_ESCORT.test(`${o.title} ${o.location} ${o.description}`);
+}
+
+function parentBusyDuring(
+  timed: Occurrence[],
+  parentId: string,
+  windowStart: number,
+  windowEnd: number,
+): Occurrence | undefined {
+  return timed.find(
+    (o) =>
+      o.memberIds.includes(parentId) &&
+      startsAround(o) < windowEnd &&
+      endsAround(o) > windowStart,
+  );
+}
+
 export function estimateTravel(
   from: string,
   to: string,
@@ -146,10 +168,11 @@ function analyzeSingleDay(state: FamilyState, date: string): DayCoordination {
     });
   }
 
-  // Gaps serrés entre RDV de la même personne
   const timed = occurrences
     .filter((o) => !o.allDay && o.startTime)
     .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+
+  // Gaps serrés entre RDV de la même personne
   for (let i = 0; i < timed.length - 1; i++) {
     const a = timed[i]!;
     const b = timed[i + 1]!;
@@ -197,9 +220,160 @@ function analyzeSingleDay(state: FamilyState, date: string): DayCoordination {
     }
   }
 
-  // Qui emmène les enfants après l'école ?
   const children = state.members.filter(isChild);
   const parents = state.members.filter(isParent);
+
+  // RDV médical / accompagnement enfant pendant que parent(s) occupé(s)
+  for (const child of children) {
+    const childAppts = timed.filter(
+      (o) => o.memberIds.includes(child.id) && needsEscort(o),
+    );
+    for (const appt of childAppts) {
+      const wStart = startsAround(appt);
+      const wEnd = endsAround(appt);
+      const freeParents: FamilyMember[] = [];
+      const busyDetails: string[] = [];
+      for (const p of parents) {
+        const blocking = parentBusyDuring(timed, p.id, wStart, wEnd);
+        if (blocking) {
+          busyDetails.push(
+            `${memberName(p)} : « ${blocking.title} » (${blocking.startTime}–${blocking.endTime || "?"})`,
+          );
+        } else {
+          freeParents.push(p);
+        }
+      }
+
+      if (parents.length === 0) continue;
+
+      if (freeParents.length === 0) {
+        problems.push({
+          id: `prob-escort-${child.id}-${appt.id}`,
+          severity: "red",
+          title: `Personne pour accompagner ${memberName(child)}`,
+          description: `${memberName(child)} a « ${appt.title} » à ${appt.startTime}, mais tous les parents sont occupés : ${busyDetails.join(" ; ")}.`,
+          relatedOccIds: [appt.id],
+          childId: child.id,
+          activityOcc: appt,
+          needBy: appt.startTime,
+        });
+
+        // Solutions concrètes
+        const busyParent = parents[0]!;
+        const busyOcc = parentBusyDuring(timed, busyParent.id, wStart, wEnd);
+
+        solutions.push({
+          id: `sol-escort-other-${appt.id}`,
+          rank: 1,
+          title: "L'autre parent ou un proche y va",
+          summary: `Demander à l'autre parent (s'il est libre) ou à un grand-parent / proche d'emmener ${memberName(child)} à « ${appt.title} » à ${appt.startTime}.`,
+          why: busyDetails.join(" | "),
+          steps: [
+            { action: "Appeler l'autre parent ou un proche maintenant" },
+            {
+              time: appt.startTime,
+              action: `Accompagner ${memberName(child)} — ${appt.title}`,
+              detail: appt.location || undefined,
+            },
+          ],
+          pros: ["Les RDV parents restent en place"],
+          cons: ["Dépend de la disponibilité d'un tiers"],
+          requiresChange: true,
+          score: 85,
+          feasible: true,
+          confidence: "assumed",
+        });
+
+        if (busyOcc && /r[eé]union|meeting|visio|appel|travail|bureau/i.test(busyOcc.title)) {
+          solutions.push({
+            id: `sol-escort-remote-${appt.id}`,
+            rank: 2,
+            title: "Réunion en visio / décaler la réunion",
+            summary: `${memberName(busyParent)} fait « ${busyOcc.title} » en visio depuis la salle d'attente, ou demande un créneau 30 min plus tard pour pouvoir emmener ${memberName(child)}.`,
+            why: `Conflit horaire exact entre « ${busyOcc.title} » et « ${appt.title} ».`,
+            steps: [
+              {
+                time: busyOcc.startTime,
+                actorId: busyParent.id,
+                action: `Prévenir que la réunion passe en visio ou est décalée`,
+              },
+              {
+                time: appt.startTime,
+                actorId: busyParent.id,
+                action: `Emmener ${memberName(child)} — ${appt.title}`,
+              },
+            ],
+            pros: ["Un parent peut accompagner l'enfant"],
+            cons: ["La réunion change de format ou d'heure"],
+            requiresChange: true,
+            score: 78,
+            feasible: true,
+            confidence: "assumed",
+          });
+        }
+
+        solutions.push({
+          id: `sol-escort-reschedule-${appt.id}`,
+          rank: 3,
+          title: "Reporter le RDV de l'enfant",
+          summary: `Appeler pour décaler « ${appt.title} » de ${memberName(child)} à un créneau où un parent est libre.`,
+          why: "Aucun adulte disponible sur ce créneau.",
+          steps: [
+            { action: `Appeler le cabinet pour reporter « ${appt.title} »` },
+            { action: "Choisir un créneau hors réunion / travail des parents" },
+          ],
+          pros: ["Évite le stress du jour J"],
+          cons: ["Délai supplémentaire pour le soin"],
+          requiresChange: true,
+          score: 55,
+          feasible: true,
+          confidence: "known",
+        });
+      } else {
+        // Un parent est libre → le proposer clairement
+        const p = freeParents[0]!;
+        solutions.push({
+          id: `sol-escort-free-${child.id}-${appt.id}`,
+          rank: 1,
+          title: `${memberName(p)} accompagne ${memberName(child)}`,
+          summary: `${memberName(p)} est libre à ${appt.startTime} et peut emmener ${memberName(child)} à « ${appt.title} ».${busyDetails.length ? ` (${busyDetails.join(", ")})` : ""}`,
+          why: `${memberName(p)} n'a pas d'obligation sur ce créneau.`,
+          steps: [
+            {
+              time: fromMin(Math.max(0, wStart - 20)),
+              actorId: p.id,
+              action: `Départ avec ${memberName(child)}`,
+            },
+            {
+              time: appt.startTime,
+              actorId: p.id,
+              action: appt.title,
+              detail: appt.location || undefined,
+            },
+          ],
+          pros: ["Parent disponible", "Pas de changement de planning"],
+          cons: [],
+          requiresChange: false,
+          score: 95,
+          feasible: true,
+          confidence: "known",
+        });
+        if (busyDetails.length) {
+          problems.push({
+            id: `prob-escort-ok-${child.id}-${appt.id}`,
+            severity: "yellow",
+            title: `Organisation : ${appt.title}`,
+            description: `${memberName(child)} à ${appt.startTime} — ${memberName(p)} peut y aller. Occupé(s) : ${busyDetails.join("; ")}.`,
+            relatedOccIds: [appt.id],
+            childId: child.id,
+            activityOcc: appt,
+          });
+        }
+      }
+    }
+  }
+
+  // Qui emmène les enfants après l'école ?
   for (const child of children) {
     const schoolish = timed.filter(
       (o) =>
@@ -229,15 +403,9 @@ function analyzeSingleDay(state: FamilyState, date: string): DayCoordination {
         activityOcc: nextAct,
       });
     } else {
-      const available = parents.filter((p) => {
-        const blocking = timed.some(
-          (o) =>
-            o.memberIds.includes(p.id) &&
-            startsAround(o) < needBy &&
-            endsAround(o) > freeAt,
-        );
-        return !blocking;
-      });
+      const available = parents.filter(
+        (p) => !parentBusyDuring(timed, p.id, freeAt, needBy),
+      );
       if (available.length === 0 && parents.length > 0) {
         problems.push({
           id: `prob-parent-${child.id}-${nextAct.id}`,
@@ -421,6 +589,13 @@ export function whatShouldWeDo(
     lines.push("Rien de spécial à organiser — le planning est clair.");
   } else {
     lines.push(analysis.summaryLine);
+  }
+  if (analysis.problems.length) {
+    lines.push("");
+    lines.push("Points d'attention :");
+    for (const p of analysis.problems.slice(0, 3)) {
+      lines.push(`  ⚠ ${p.title}`);
+    }
   }
   const timed = analysis.occurrences
     .filter((o) => !o.allDay && o.startTime)
