@@ -1,6 +1,6 @@
 /**
- * IA de coordination familiale — version complète restaurée
- * Code ZIP + détection conflit RDV médical / réunion parent
+ * IA de coordination familiale
+ * Détecte aussi les RDV génériques parent + enfant au même horaire
  */
 import { addDays, parseISO } from "date-fns";
 import { expandRange, detectConflicts } from "./expand";
@@ -48,23 +48,11 @@ function memberName(m?: FamilyMember | null): string {
   if (!m) return "?";
   return m.nickname || m.firstName || "?";
 }
-function isParent(m: FamilyMember, all: FamilyMember[]): boolean {
-  if (m.role === "parent") return true;
-  if (m.role === "enfant") return false;
-  return !all.some((x) => x.role === "parent");
+function isParent(m: FamilyMember): boolean {
+  return m.role === "parent";
 }
 function isChild(m: FamilyMember): boolean {
   return m.role === "enfant";
-}
-const NEEDS_ESCORT =
-  /ophtalmo|dentiste|m[eé]decin|docteur|orthodont|p[eé]diatre|h[oô]pital|labo|vaccin|kin[eé]|psy|orl|radiologie|analyse|urgence|contr[oô]le|\brdv\b/i;
-const PARENT_OBLIGATION =
-  /r[eé]union|meeting|visio|appel|travail|bureau|formation|entretien|client|job/i;
-function needsEscort(o: Occurrence): boolean {
-  return NEEDS_ESCORT.test(`${o.title} ${o.location || ""} ${o.description || ""}`);
-}
-function isParentObligation(o: Occurrence): boolean {
-  return PARENT_OBLIGATION.test(`${o.title} ${o.location || ""} ${o.description || ""}`);
 }
 function endsAround(o: Occurrence): number {
   return o.endTime ? toMin(o.endTime) : toMin(o.startTime) + 30;
@@ -76,7 +64,7 @@ function overlaps(a: Occurrence, b: Occurrence): boolean {
   return startsAround(a) < endsAround(b) && startsAround(b) < endsAround(a);
 }
 function names(ids: string[], members: FamilyMember[]): string {
-  return ids.map((id) => memberName(members.find((m) => m.id === id))).join(", ");
+  return ids.map((id) => memberName(members.find((m) => m.id === id))).join(", ") || "?";
 }
 
 export function estimateTravel(from: string, to: string, margin = 10) {
@@ -93,7 +81,7 @@ function analyzeSingleDay(state: FamilyState, date: string): DayCoordination {
   const problems: LogisticsProblem[] = [];
   const solutions: RankedSolution[] = [];
   const members = state.members;
-  const parents = members.filter((m) => isParent(m, members));
+  const parents = members.filter(isParent);
   const children = members.filter(isChild);
 
   for (const c of conflicts) {
@@ -115,91 +103,75 @@ function analyzeSingleDay(state: FamilyState, date: string): DayCoordination {
   const timed = occurrences.filter((o) => !o.allDay && o.startTime)
     .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
 
-  // Conflit croisé : dentiste/ophtalmo d'un enfant + réunion d'un parent au même moment
+  // Conflit parent + enfant au même horaire (même si le titre est juste « Rdv »)
   for (let i = 0; i < timed.length; i++) {
     for (let j = i + 1; j < timed.length; j++) {
       const a = timed[i]!, b = timed[j]!;
       if (!overlaps(a, b)) continue;
       if (a.memberIds.some((id) => b.memberIds.includes(id))) continue;
-      const aEsc = needsEscort(a), bEsc = needsEscort(b);
-      const aObl = isParentObligation(a), bObl = isParentObligation(b);
-      if (!((aEsc && bObl) || (bEsc && aObl))) continue;
-      const medical = aEsc ? a : b;
-      const obligation = aEsc ? b : a;
-      const medicalWho = names(medical.memberIds, members);
-      const obligWho = names(obligation.memberIds, members);
+
+      const aParents = a.memberIds.filter((id) => parents.some((p) => p.id === id));
+      const bParents = b.memberIds.filter((id) => parents.some((p) => p.id === id));
+      const aChildren = a.memberIds.filter((id) => children.some((c) => c.id === id));
+      const bChildren = b.memberIds.filter((id) => children.some((c) => c.id === id));
+
+      const parentChildCross =
+        (aParents.length > 0 && bChildren.length > 0) ||
+        (bParents.length > 0 && aChildren.length > 0);
+
+      if (!parentChildCross) continue;
+
+      const childOcc = aChildren.length ? a : b;
+      const parentOcc = childOcc === a ? b : a;
+      const childWho = names(childOcc.memberIds, members);
+      const parentWho = names(parentOcc.memberIds, members);
 
       problems.push({
-        id: `prob-cross-${medical.id}-${obligation.id}`,
+        id: `prob-cross-${childOcc.id}-${parentOcc.id}`,
         severity: "red",
-        title: `Conflit : ${medical.title} // ${obligation.title}`,
-        description: `${medicalWho} a « ${medical.title} » (${medical.startTime}–${medical.endTime || "?"}) pendant que ${obligWho} a « ${obligation.title} » (${obligation.startTime}–${obligation.endTime || "?"}). Qui accompagne ?`,
-        relatedOccIds: [medical.id, obligation.id],
-        needBy: medical.startTime,
+        title: `Conflit : ${childOcc.title} // ${parentOcc.title}`,
+        description: `${childWho} a « ${childOcc.title} » (${childOcc.startTime}–${childOcc.endTime || "?"}) pendant que ${parentWho} a « ${parentOcc.title} » (${parentOcc.startTime}–${parentOcc.endTime || "?"}). Qui accompagne l'enfant ?`,
+        relatedOccIds: [childOcc.id, parentOcc.id],
+        needBy: childOcc.startTime,
       });
 
-      solutions.push({
-        id: `sol-cross-other-${medical.id}`, rank: 1,
-        title: "L'autre parent ou un proche y va",
-        summary: `Pendant « ${obligation.title} » de ${obligWho}, un autre adulte emmène ${medicalWho} à « ${medical.title} ».`,
-        why: "Deux obligations familiales au même horaire.",
-        steps: [
-          { action: "Confirmer qui est disponible (autre parent / grand-parent)" },
-          { time: medical.startTime, action: `Accompagner ${medicalWho} — ${medical.title}`, detail: medical.location || undefined },
-        ],
-        pros: [`${obligWho} garde sa réunion`], cons: ["Besoin d'un second adulte"],
-        requiresChange: true, score: 90, feasible: true, confidence: "assumed",
-      });
-      solutions.push({
-        id: `sol-cross-visio-${medical.id}`, rank: 2,
-        title: "Réunion en visio ou décalée",
-        summary: `${obligWho} fait « ${obligation.title} » en visio (salle d'attente) ou la décale de 30–45 min pour emmener ${medicalWho}.`,
-        why: `Chevauchement entre « ${obligation.title} » et « ${medical.title} ».`,
-        steps: [
-          { time: obligation.startTime, action: `Prévenir : visio ou report de « ${obligation.title} »` },
-          { time: medical.startTime, action: `Emmener ${medicalWho} — ${medical.title}` },
-        ],
-        pros: ["Un parent de la famille peut y aller"], cons: ["La réunion change"],
-        requiresChange: true, score: 82, feasible: true, confidence: "assumed",
-      });
-      solutions.push({
-        id: `sol-cross-move-${medical.id}`, rank: 3,
-        title: "Reporter le RDV médical",
-        summary: `Appeler pour décaler « ${medical.title} » de ${medicalWho} hors de la plage « ${obligation.title} ».`,
-        why: "Libère le créneau sans toucher à la réunion.",
-        steps: [{ action: `Appeler le cabinet pour reporter « ${medical.title} »` }],
-        pros: ["Planning parent inchangé"], cons: ["Soin reporté"],
-        requiresChange: true, score: 55, feasible: true, confidence: "known",
-      });
-    }
-  }
-
-  for (const child of children) {
-    for (const appt of timed.filter((o) => o.memberIds.includes(child.id) && needsEscort(o))) {
-      if (problems.some((p) => p.relatedOccIds.includes(appt.id))) continue;
-      const free = parents.filter((p) => {
-        const w0 = startsAround(appt), w1 = endsAround(appt);
-        return !timed.some((o) => o.memberIds.includes(p.id) && startsAround(o) < w1 && endsAround(o) > w0);
-      });
-      if (free.length === 0 && parents.length > 0) {
-        problems.push({
-          id: `prob-escort-${child.id}-${appt.id}`, severity: "red",
-          title: `Personne pour accompagner ${memberName(child)}`,
-          description: `${memberName(child)} : « ${appt.title} » à ${appt.startTime} — tous les parents occupés.`,
-          relatedOccIds: [appt.id], childId: child.id, activityOcc: appt, needBy: appt.startTime,
-        });
-      } else if (free[0]) {
-        const p = free[0];
+      const otherParents = parents.filter((p) => !parentOcc.memberIds.includes(p.id));
+      if (otherParents.length > 0) {
+        const op = otherParents[0]!;
         solutions.push({
-          id: `sol-free-${child.id}-${appt.id}`, rank: 1,
-          title: `${memberName(p)} accompagne ${memberName(child)}`,
-          summary: `${memberName(p)} est libre à ${appt.startTime} pour « ${appt.title} ».`,
-          why: "Parent disponible.", steps: [
-            { time: appt.startTime, actorId: p.id, action: `Emmener ${memberName(child)} — ${appt.title}` },
+          id: `sol-cross-other-${childOcc.id}`, rank: 1,
+          title: `${memberName(op)} accompagne ${childWho}`,
+          summary: `Pendant le RDV de ${parentWho}, ${memberName(op)} emmène ${childWho} à « ${childOcc.title} ».`,
+          why: "Un autre parent est disponible sur le papier.",
+          steps: [
+            { time: childOcc.startTime, actorId: op.id, action: `Accompagner ${childWho} — ${childOcc.title}` },
           ],
-          pros: ["Simple"], cons: [], requiresChange: false, score: 95, feasible: true, confidence: "known",
+          pros: [`${parentWho} garde « ${parentOcc.title} »`], cons: [],
+          requiresChange: false, score: 95, feasible: true, confidence: "known",
+        });
+      } else {
+        solutions.push({
+          id: `sol-cross-other-${childOcc.id}`, rank: 1,
+          title: "L'autre parent ou un proche y va",
+          summary: `Pendant « ${parentOcc.title} » de ${parentWho}, un autre adulte emmène ${childWho} à « ${childOcc.title} ».`,
+          why: "Parent et enfant ont un RDV au même moment.",
+          steps: [
+            { action: "Appeler l'autre parent / un grand-parent" },
+            { time: childOcc.startTime, action: `Accompagner ${childWho}` },
+          ],
+          pros: [`${parentWho} garde son RDV`], cons: ["Besoin d'un tiers"],
+          requiresChange: true, score: 88, feasible: true, confidence: "assumed",
         });
       }
+      solutions.push({
+        id: `sol-cross-move-${childOcc.id}`, rank: 2,
+        title: "Décaler l'un des deux RDV",
+        summary: `Décaler « ${parentOcc.title} » de ${parentWho} ou « ${childOcc.title} » de ${childWho} pour ne plus se chevaucher.`,
+        why: "Un seul adulte ne peut pas être à deux endroits.",
+        steps: [{ action: "Appeler pour décaler l'un des créneaux" }],
+        pros: ["Plus de conflit"], cons: ["Coup de fil"],
+        requiresChange: true, score: 70, feasible: true, confidence: "known",
+      });
     }
   }
 
@@ -268,7 +240,7 @@ export function organiseMyDay(state: FamilyState, date: string = todayISO()) {
   return {
     title: analysis.label, timeline,
     recommendation: best && analysis.status !== "ok" ? best.summary
-      : analysis.status === "ok" ? "Aucune action particulière."
+      : analysis.status === "ok" ? "Aucune action particulière. Tout le monde est à l'heure."
       : "Vérifiez qui peut accompagner les RDV.",
     why: best?.why ?? analysis.summaryLine,
     status: analysis.status,
