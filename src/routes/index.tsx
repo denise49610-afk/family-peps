@@ -15,6 +15,7 @@ import { useEditors } from "@/components/editors-context";
 import { MemberAvatar } from "@/components/member-avatar";
 import { openMoreMenu } from "@/components/shell";
 import { ShareFamilyCard } from "@/components/share-family";
+import { AiCoordinatorCard } from "@/components/ai-coordinator-card";
 import { detectConflicts, expandRange, reminderLabel } from "@/lib/family/expand";
 import { formatDayLong, formatTime, todayISO } from "@/lib/family/dates";
 import { useFamilyStore } from "@/lib/family/store";
@@ -193,6 +194,8 @@ function Home() {
       </p>
 
       <ShareFamilyCard compact />
+
+      <AiCoordinatorCard />
 
       {conflicts.length > 0 ? (
         <p className="rounded-2xl bg-member-jaune-soft px-4 py-3 text-sm font-bold text-member-jaune-fg">
