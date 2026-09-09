@@ -197,6 +197,22 @@ function Home() {
 
       <AiCoordinatorCard />
 
+      <button
+        type="button"
+        onClick={() => open({ type: "brain-dump" })}
+        className="flex w-full items-center gap-3 rounded-[1.35rem] border border-dashed border-primary/40 bg-primary/5 px-4 py-3 text-left tap"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-white text-lg shadow-sm">
+          💬
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14px] font-extrabold text-ink">Balance tout</span>
+          <span className="block text-[12px] font-semibold text-muted">
+            Écrivez en vrac — on range RDV, sport, tâches…
+          </span>
+        </span>
+      </button>
+
       {conflicts.length > 0 ? (
         <p className="rounded-2xl bg-member-jaune-soft px-4 py-3 text-sm font-bold text-member-jaune-fg">
           {conflicts.length} chevauchement{conflicts.length > 1 ? "s" : ""} aujourd'hui —
