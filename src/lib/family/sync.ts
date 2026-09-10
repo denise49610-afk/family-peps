@@ -26,6 +26,7 @@ const STATE_KEYS: (keyof FamilyState)[] = [
 
 const MAX_JSON = 1_200_000;
 const ASSET_PREFIX = "asset:";
+const ME_KEY = "famizen-me-id";
 
 function snapshotState(s: FamilyState): FamilyState {
   const out = {} as FamilyState;
@@ -92,8 +93,14 @@ async function pushAssets(code: string, state: FamilyState): Promise<FamilyState
   return copy;
 }
 
+/** N'envoie jamais « qui je suis » dans le cloud (propre à chaque téléphone). */
 function compactForCloud(state: FamilyState): FamilyState {
   const copy = structuredClone(snapshotState(state));
+  copy.settings = {
+    ...copy.settings,
+    currentMemberId: "",
+    healthUnlocked: false,
+  };
   const json = JSON.stringify(copy);
   if (json.length <= MAX_JSON) return copy;
   copy.documents = copy.documents.map((d) =>
@@ -165,16 +172,34 @@ async function loadAssets(code: string): Promise<Map<string, string>> {
   }
 }
 
+function readLocalMeId(): string {
+  try {
+    return localStorage.getItem(ME_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function writeLocalMeId(id: string) {
+  try {
+    if (id) localStorage.setItem(ME_KEY, id);
+    else localStorage.removeItem(ME_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 function applyRemotePayload(payload: FamilyState, assets: Map<string, string>) {
   const local = useFamilyStore.getState();
+  // « Qui je suis » reste LOCAL (téléphone) — jamais écrasé par le cloud
+  const localMe =
+    local.settings.currentMemberId ||
+    readLocalMeId() ||
+    "";
   const nextSettings = {
     ...payload.settings,
     healthUnlocked: local.settings.healthUnlocked,
-    currentMemberId:
-      payload.settings?.currentMemberId ||
-      local.settings.currentMemberId ||
-      payload.members?.[0]?.id ||
-      "",
+    currentMemberId: localMe,
     familyCode: local.settings.familyCode,
     cloudSync: local.settings.cloudSync,
   };
@@ -394,6 +419,8 @@ export async function startSync(code?: string) {
     if (applyingRemote || pushing) return;
     const s = useFamilyStore.getState().settings;
     if (!s.cloudSync || !s.familyCode) return;
+    // Mémoriser « qui je suis » localement quand ça change
+    if (s.currentMemberId) writeLocalMeId(s.currentMemberId);
     schedulePush(s.familyCode);
   });
 }
@@ -415,7 +442,12 @@ export function stopSync(updateStatus = true) {
 }
 
 export function initCloudSync() {
-  const { familyCode, cloudSync } = useFamilyStore.getState().settings;
+  const { familyCode, cloudSync, currentMemberId } = useFamilyStore.getState().settings;
+  if (currentMemberId) writeLocalMeId(currentMemberId);
+  else {
+    const saved = readLocalMeId();
+    if (saved) useFamilyStore.getState().updateSettings({ currentMemberId: saved });
+  }
   if (cloudSync && familyCode) {
     void startSync(familyCode);
   }
