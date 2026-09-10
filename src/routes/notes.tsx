@@ -43,7 +43,6 @@ function ChatPage() {
   const members = useFamilyStore((s) => s.members);
   const settings = useFamilyStore((s) => s.settings);
   const addNote = useFamilyStore((s) => s.addNote);
-  const removeNote = useFamilyStore((s) => s.removeNote);
   const toggleNoteReaction = useFamilyStore((s) => s.toggleNoteReaction);
   const addDocument = useFamilyStore((s) => s.addDocument);
   const { open } = useEditors();
@@ -68,15 +67,6 @@ function ChatPage() {
       .filter((n) => n.visibility !== "personal" && isFresh(n.createdAt, now))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }, [notes]);
-
-  useEffect(() => {
-    return () => {
-      const { notes: all, removeNote: drop } = useFamilyStore.getState();
-      for (const n of all) {
-        if (n.visibility !== "personal") drop(n.id);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -125,13 +115,12 @@ function ChatPage() {
     if (p === "granted") {
       toast.success("Notifications activées pour le chat");
       try {
-        new Notification("Fami'Zen · Chat", {
-          body: "Tu recevras une alerte quand quelqu’un écrit.",
-          icon: "/favicon.svg",
-        });
+        newNotificationSafe("Tu recevras une alerte quand quelqu’un écrit.");
       } catch {
         /* ignore */
       }
+    } else {
+      toast.error("Permission refusée — active-les dans les réglages du téléphone");
     }
   }
 
@@ -158,7 +147,7 @@ function ChatPage() {
       <header className="mb-3">
         <h1 className="font-display text-[1.65rem] font-extrabold">Chat Famille</h1>
         <p className="text-sm font-semibold text-muted">
-          Les messages s'effacent tout seuls quand vous quittez le chat.
+          Messages partagés · visibles 24 h · chaque téléphone choisit « qui je suis ».
         </p>
       </header>
 
@@ -169,9 +158,11 @@ function ChatPage() {
           className="mb-3 flex items-center gap-2 rounded-2xl bg-member-orange-soft px-4 py-3 text-left text-sm font-bold text-member-orange-fg"
         >
           <Bell className="size-5 shrink-0" />
-          Activer les notifications
+          Activer les notifications chat
         </button>
-      ) : null}
+      ) : (
+        <p className="mb-2 text-xs font-bold text-member-vert">Notifications activées</p>
+      )}
 
       <div className="flex min-h-[52dvh] flex-1 flex-col">
         <div className="flex-1 space-y-4 overflow-y-auto py-2">
@@ -315,7 +306,7 @@ function ChatPage() {
           </p>
         ) : (
           <p className="mt-2 text-center text-[11px] font-bold text-warn">
-            Choisis ton profil dans Réglages
+            Choisis ton profil dans Réglages → Je suis
           </p>
         )}
         <input
@@ -351,7 +342,7 @@ function AttachBtn({
   );
 }
 
-function notifyChat(body: string) {
+function newNotificationSafe(body: string) {
   if (typeof Notification === "undefined") return;
   if (Notification.permission !== "granted") return;
   try {
@@ -363,4 +354,8 @@ function notifyChat(body: string) {
   } catch {
     /* ignore */
   }
+}
+
+function notifyChat(body: string) {
+  newNotificationSafe(body);
 }
