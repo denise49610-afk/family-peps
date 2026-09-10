@@ -18,7 +18,7 @@ export function ChatWatch() {
   const meId = useFamilyStore((s) => s.settings.currentMemberId);
   const known = useRef<Set<string> | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [perm, setPerm] = useState<"granted" | "denied" | "default">("denied");
+  const [perm, setPerm] = useState<"granted" | "denied" | "default">("default");
 
   useEffect(() => {
     setMounted(true);
@@ -65,12 +65,12 @@ export function ChatWatch() {
         const p = await Notification.requestPermission();
         setPerm(p);
         if (p === "granted") toast.success("Notifications activées");
-        else toast.error("Permission refusée");
+        else toast.error("Permission refusée — active-les dans les réglages du téléphone");
       }}
       className={cn(
-        "fixed left-4 z-30 hidden items-center gap-2 rounded-full lg:flex",
+        "fixed left-3 z-30 flex items-center gap-2 rounded-full",
         "bg-member-orange-soft text-member-orange-fg px-3 py-2 text-xs font-bold card-shadow tap",
-        "bottom-8",
+        "bottom-24 lg:bottom-8",
       )}
     >
       <Bell className="size-4 shrink-0" />
