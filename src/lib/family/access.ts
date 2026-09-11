@@ -1,6 +1,5 @@
 import type { FamilyMember, MemberRole } from "./types";
 
-/** Les parents (et « autre ») voient le contenu verrouillé ; les enfants non. */
 export function canSeeParentOnly(role: MemberRole | undefined | null): boolean {
   return role === "parent" || role === "autre";
 }
