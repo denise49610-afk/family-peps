@@ -3,6 +3,7 @@
 @theme {
   --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-script: "Pacifico", "Segoe Script", cursive;
 
   --color-bg: #f4efe6;
   --color-bg-deep: #ebe4d6;
@@ -23,6 +24,20 @@
   --color-zen-z: #6fcf7a;
   --color-zen-e: #f48fb1;
   --color-zen-n: #8b7cf7;
+  --color-badge: #ee5d78;
+
+  --color-tile-purple: #ede3ff;
+  --color-tile-purple-fg: #5b3cc4;
+  --color-tile-pink: #ffe0ec;
+  --color-tile-pink-fg: #c2185b;
+  --color-tile-amber: #ffe8c8;
+  --color-tile-amber-fg: #b56a12;
+  --color-tile-mint: #d4f1ec;
+  --color-tile-mint-fg: #1d7a72;
+  --color-tile-lilac: #e7e3ff;
+  --color-tile-lilac-fg: #6b4fd4;
+  --color-remind-bg: #fff1f4;
+  --color-remind-fg: #e24b6a;
 
   --color-member-rose: #f48fb1;
   --color-member-rose-soft: #fde8f0;
@@ -112,6 +127,7 @@
   --shadow-card: 0 8px 24px -16px rgba(42, 36, 48, 0.18);
   --shadow-card-hover: 0 12px 28px -14px rgba(42, 36, 48, 0.22);
   --shadow-pop: 0 16px 36px -14px rgba(124, 92, 255, 0.45);
+  --shadow-nav: 0 -8px 28px -16px rgba(42, 36, 48, 0.2);
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -121,45 +137,17 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-
-  html,
-  body,
-  #app {
-    min-height: 100%;
-  }
-
+  html, body, #app { min-height: 100%; }
   body {
     background: var(--color-bg);
     color: var(--color-ink);
     font-family: var(--font-sans);
   }
-
-  h1,
-  h2,
-  h3 {
-    text-wrap: balance;
-  }
-
-  p {
-    text-wrap: pretty;
-  }
-
-  button:not(:disabled),
-  [role="button"]:not(:disabled) {
-    cursor: pointer;
-  }
-
-  button:disabled {
-    cursor: not-allowed;
-  }
-
-  input,
-  textarea,
-  select {
-    font: inherit;
-    color: inherit;
-  }
-
+  h1, h2, h3 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  input, textarea, select { font: inherit; color: inherit; }
   ::selection {
     background: color-mix(in oklab, var(--color-primary) 28%, white);
     color: var(--color-ink);
@@ -167,37 +155,17 @@
 }
 
 @layer utilities {
-  .font-display {
-    font-family: var(--font-display);
-  }
-
-  .card-shadow {
-    box-shadow: var(--shadow-card);
-  }
-
-  .card-shadow-hover {
-    box-shadow: var(--shadow-card-hover);
-  }
-
-  .zen-wash {
-    background-color: var(--color-bg);
-  }
-
+  .font-display { font-family: var(--font-display); }
+  .font-script { font-family: var(--font-script); }
+  .card-shadow { box-shadow: var(--shadow-card); }
+  .card-shadow-hover { box-shadow: var(--shadow-card-hover); }
+  .zen-wash { background-color: var(--color-bg); }
   .tap {
-    transition:
-      transform 160ms var(--ease-out),
-      box-shadow 160ms var(--ease-out);
+    transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
   }
-  .tap:hover {
-    transform: translateY(-1px);
-  }
-  .tap:active {
-    transform: scale(0.97);
-  }
-
-  .stagger-in > * {
-    animation: fade-up 480ms var(--ease-out) both;
-  }
+  .tap:hover { transform: translateY(-1px); }
+  .tap:active { transform: scale(0.97); }
+  .stagger-in > * { animation: fade-up 480ms var(--ease-out) both; }
   .stagger-in > *:nth-child(1) { animation-delay: 0ms; }
   .stagger-in > *:nth-child(2) { animation-delay: 50ms; }
   .stagger-in > *:nth-child(3) { animation-delay: 100ms; }
@@ -206,28 +174,25 @@
   .stagger-in > *:nth-child(6) { animation-delay: 250ms; }
   .stagger-in > *:nth-child(7) { animation-delay: 300ms; }
   .stagger-in > *:nth-child(8) { animation-delay: 350ms; }
-
   .nav-plus {
     box-shadow:
-      0 10px 24px -8px rgba(124, 92, 255, 0.55),
-      0 0 0 6px color-mix(in oklab, var(--color-primary) 12%, white);
+      0 12px 28px -8px rgba(124, 92, 255, 0.55),
+      0 0 0 6px color-mix(in oklab, var(--color-primary) 14%, white);
+  }
+  .nav-dock { box-shadow: var(--shadow-nav); }
+  .count-badge {
+    background: var(--color-badge);
+    color: #fff;
   }
 }
 
 @keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stagger-in > *,
-  .tap {
+  .stagger-in > *, .tap {
     animation: none !important;
     transition: none !important;
   }
