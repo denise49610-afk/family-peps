@@ -1,22 +1,22 @@
 import {
   addDays,
   addMonths,
-  addWeeks,
   addYears,
   differenceInCalendarDays,
   format,
   getDay,
+  isWithinInterval,
   parseISO,
   setHours,
   setMinutes,
   startOfDay,
-  startOfWeek,
 } from "date-fns";
 import { fr } from "date-fns/locale";
+import { capitalize } from "@/lib/utils";
 import type { Recurrence } from "./types";
 
-function capitalize(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+export function parseDate(iso: string): Date {
+  return startOfDay(parseISO(iso));
 }
 
 export function toISODate(date: Date): string {
@@ -82,17 +82,67 @@ export function minutesBetween(start: string, end: string): number {
   return eh * 60 + em - (sh * 60 + sm);
 }
 
-export function parseDate(dateISO: string): Date {
-  return startOfDay(parseISO(dateISO));
+export function overlaps(
+  aStart: string,
+  aEnd: string,
+  bStart: string,
+  bEnd: string,
+): boolean {
+  const as = timeToMinutes(aStart);
+  const ae = timeToMinutes(aEnd || aStart);
+  const bs = timeToMinutes(bStart);
+  const be = timeToMinutes(bEnd || bStart);
+  return as < be && bs < ae;
+}
+
+export function timeToMinutes(hhmm: string): number {
+  const [h, m] = (hhmm || "00:00").split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+export function ageOn(birthISO: string, on = new Date()): number | null {
+  if (!birthISO) return null;
+  const birth = parseISO(birthISO);
+  if (Number.isNaN(birth.getTime())) return null;
+  let age = on.getFullYear() - birth.getFullYear();
+  const hadBirthday =
+    on.getMonth() > birth.getMonth() ||
+    (on.getMonth() === birth.getMonth() && on.getDate() >= birth.getDate());
+  if (!hadBirthday) age -= 1;
+  return age;
+}
+
+export function nextBirthday(birthISO: string, from = new Date()): Date | null {
+  if (!birthISO) return null;
+  const birth = parseISO(birthISO);
+  if (Number.isNaN(birth.getTime())) return null;
+  const thisYear = new Date(from.getFullYear(), birth.getMonth(), birth.getDate());
+  if (thisYear >= startOfDay(from)) return thisYear;
+  return new Date(from.getFullYear() + 1, birth.getMonth(), birth.getDate());
 }
 
 export function daysUntil(date: Date, from = new Date()): number {
   return differenceInCalendarDays(startOfDay(date), startOfDay(from));
 }
 
-export function weekDates(anchor: Date, weekStartsOn: 0 | 1 = 1): Date[] {
-  const start = startOfWeek(anchor, { weekStartsOn });
-  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+export const WEEKDAYS_FR = [
+  "Dimanche",
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+];
+
+export const WEEKDAYS_SHORT = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+
+export function weekdayLabel(day: number, short = false): string {
+  return short ? WEEKDAYS_SHORT[day] ?? "" : WEEKDAYS_FR[day] ?? "";
+}
+
+export function mondayIndex(weekStartsOn: 0 | 1): number[] {
+  return weekStartsOn === 1 ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6];
 }
 
 export function recurrenceDates(
@@ -102,45 +152,53 @@ export function recurrenceDates(
   to: Date,
 ): string[] {
   const start = parseDate(startISO);
-  const rangeStart = startOfDay(from);
-  const rangeEnd = startOfDay(to);
-  const until = recurrence.until ? parseDate(recurrence.until) : null;
-
   if (recurrence.freq === "none") {
-    return start >= rangeStart && start <= rangeEnd ? [startISO] : [];
+    if (isWithinInterval(start, { start: startOfDay(from), end: startOfDay(to) })) {
+      return [startISO];
+    }
+    return startISO >= toISODate(from) && startISO <= toISODate(to) ? [startISO] : [];
   }
 
-  const out: string[] = [];
-  let cursor = start;
-  let guard = 0;
+  const until = recurrence.until ? parseDate(recurrence.until) : to;
+  const endBound = until < to ? until : to;
   const interval = Math.max(1, recurrence.interval || 1);
+  const out: string[] = [];
+  const rangeStart = startOfDay(from);
+  const rangeEnd = startOfDay(endBound);
+  let guard = 0;
 
-  while (cursor <= rangeEnd && guard < 400) {
-    guard += 1;
-    if (until && cursor > until) break;
-    if (cursor >= rangeStart) {
-      if (recurrence.freq === "weekly" && recurrence.byWeekday?.length) {
-        if (recurrence.byWeekday.includes(getDay(cursor))) {
-          out.push(toISODate(cursor));
+  if (recurrence.freq === "weekly" && recurrence.byWeekday && recurrence.byWeekday.length > 0) {
+    let cursor = start < rangeStart ? rangeStart : start;
+    while (cursor <= rangeEnd && guard < 800) {
+      guard += 1;
+      if (cursor >= start && cursor >= rangeStart) {
+        const dow = getDay(cursor);
+        if (recurrence.byWeekday.includes(dow)) {
+          const weeksFromStart = Math.floor(differenceInCalendarDays(cursor, start) / 7);
+          if (weeksFromStart % interval === 0) {
+            out.push(toISODate(cursor));
+          }
         }
-      } else {
+      }
+      cursor = addDays(cursor, 1);
+    }
+    return out;
+  }
+
+  let cursor = start;
+  while (cursor <= endBound && guard < 800) {
+    guard += 1;
+    if (cursor >= rangeStart && cursor <= rangeEnd) {
+      const dow = getDay(cursor);
+      if (!recurrence.byWeekday || recurrence.byWeekday.includes(dow)) {
         out.push(toISODate(cursor));
       }
     }
     if (recurrence.freq === "daily") cursor = addDays(cursor, interval);
-    else if (recurrence.freq === "weekly") cursor = addWeeks(cursor, interval);
+    else if (recurrence.freq === "weekly") cursor = addDays(cursor, 7 * interval);
     else if (recurrence.freq === "monthly") cursor = addMonths(cursor, interval);
     else if (recurrence.freq === "yearly") cursor = addYears(cursor, interval);
     else break;
   }
   return out;
-}
-
-export function nextBirthday(birthISO: string, from = new Date()): Date | null {
-  if (!birthISO) return null;
-  const birth = parseISO(birthISO);
-  const year = from.getFullYear();
-  let next = new Date(year, birth.getMonth(), birth.getDate());
-  if (next < startOfDay(from)) next = new Date(year + 1, birth.getMonth(), birth.getDate());
-  return next;
 }
