@@ -23,8 +23,11 @@ function eventColor(
 export function expandRange(state: FamilyState, from: Date, to: Date): Occurrence[] {
   const occ: Occurrence[] = [];
   const members = state.members;
+  const me = members.find((m) => m.id === state.settings?.currentMemberId);
+  const hideParentOnly = me?.role === "enfant";
 
   for (const event of state.events) {
+    if (hideParentOnly && event.parentOnly) continue;
     const dates = recurrenceDates(event.date, event.recurrence, from, to);
     for (const date of dates) {
       occ.push({
@@ -173,8 +176,8 @@ export function detectConflicts(occurrences: Occurrence[]): Conflict[] {
   const conflicts: Conflict[] = [];
   for (let i = 0; i < timed.length; i++) {
     for (let j = i + 1; j < timed.length; j++) {
-      const a = timed[i];
-      const b = timed[j];
+      const a = timed[i]!;
+      const b = timed[j]!;
       if (a.date !== b.date) continue;
       const shared = a.memberIds.filter((id) => b.memberIds.includes(id));
       if (shared.length === 0) continue;
