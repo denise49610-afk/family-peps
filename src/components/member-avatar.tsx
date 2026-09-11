@@ -12,62 +12,64 @@ const SIZES = {
 } as const;
 
 const EMOJI_SIZES = {
-  xs: "text-xs",
-  sm: "text-sm",
-  md: "text-base",
-  lg: "text-2xl",
-  xl: "text-4xl",
+  xs: "text-sm",
+  sm: "text-base",
+  md: "text-xl",
+  lg: "text-3xl",
+  xl: "text-5xl",
 } as const;
 
 export function initialsOf(member: Pick<FamilyMember, "firstName" | "lastName" | "nickname">) {
   const src = `${member.firstName} ${member.lastName}`.trim() || member.nickname;
   const parts = src.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0] + parts[1]![0]).toUpperCase();
 }
 
 export function MemberAvatar({
   member,
   size = "md",
   className,
+  plain = false,
 }: {
   member: Pick<FamilyMember, "firstName" | "lastName" | "nickname" | "color" | "photo"> & {
     avatar?: string;
   };
   size?: keyof typeof SIZES;
   className?: string;
+  plain?: boolean;
 }) {
   const emoji = member.avatar?.trim();
+  const ring = plain ? 0 : size === "xl" || size === "lg" ? 3 : 2;
   return (
     <span
-      className={cn(
-        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-bold ring-2 ring-white",
-        SIZES[size],
-        className,
-      )}
+      className={cn("relative inline-flex shrink-0 items-center justify-center", SIZES[size], className)}
       style={{
-        backgroundColor: member.photo ? undefined : memberTone(member.color, "soft"),
-        color: memberTone(member.color, "fg"),
-        boxShadow: emoji || member.photo ? `0 0 0 2px ${memberTone(member.color)}` : undefined,
+        padding: ring,
+        backgroundColor: plain ? "transparent" : memberTone(member.color),
+        borderRadius: 9999,
       }}
     >
-      {member.photo ? (
-        <img
-          src={member.photo}
-          alt=""
-          className="size-full object-cover outline outline-1 -outline-offset-1 outline-ink/10"
-        />
-      ) : emoji ? (
-        <span
-          className={cn("flex size-full items-center justify-center leading-none", EMOJI_SIZES[size])}
-          aria-hidden
-        >
-          {emoji}
-        </span>
-      ) : (
-        <span style={{ color: memberTone(member.color) }}>{initialsOf(member)}</span>
-      )}
+      <span
+        className={cn(
+          "flex size-full items-center justify-center overflow-hidden rounded-full font-bold",
+        )}
+        style={{
+          backgroundColor: member.photo ? "var(--color-surface)" : memberTone(member.color, "soft"),
+          color: memberTone(member.color, "fg"),
+        }}
+      >
+        {member.photo ? (
+          <img src={member.photo} alt="" className="size-full object-cover" />
+        ) : emoji ? (
+          <span className={cn("leading-none", EMOJI_SIZES[size])} aria-hidden>
+            {emoji}
+          </span>
+        ) : (
+          <span style={{ color: memberTone(member.color) }}>{initialsOf(member)}</span>
+        )}
+      </span>
     </span>
   );
 }
