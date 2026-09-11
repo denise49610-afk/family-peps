@@ -85,7 +85,6 @@ export type FamilyMember = {
   role: MemberRole;
   color: MemberColor;
   photo: string | null;
-  /** Emoji / sticker avatar (prioritaire si pas de photo) */
   avatar: string;
   birthDate: string;
   phone: string;
@@ -96,7 +95,6 @@ export type FamilyMember = {
   health: HealthInfo;
 };
 
-/** Avatars ludiques au choix */
 export const AVATAR_CHOICES = [
   "🦊", "🐼", "🦁", "🐰", "🦄", "🐸", "🐯", "🐨",
   "🐲", "🐙", "🦋", "🌟", "🚀", "⚽", "🎮", "📚",
@@ -121,6 +119,8 @@ export type FamilyEvent = {
   color: MemberColor | null;
   recurrence: Recurrence;
   attachmentIds: string[];
+  /** Visible uniquement par les parents si true */
+  parentOnly?: boolean;
 };
 
 export type TaskPriority = "low" | "medium" | "high";
@@ -171,7 +171,6 @@ export type Schedule = {
   memberId: string;
   name: string;
   slots: ScheduleSlot[];
-  /** Photo d'origine de l'emploi du temps (data URL ou asset:id). */
   photo?: string | null;
 };
 
@@ -183,6 +182,8 @@ export type FamilyDocument = {
   mimeType: string;
   dataUrl: string;
   createdAt: string;
+  /** Visible uniquement par les parents si true */
+  parentOnly?: boolean;
 };
 
 export type NoteReaction = {
@@ -229,7 +230,6 @@ export type Category = {
 
 export type AppSettings = {
   appName: string;
-  /** Nom affiché : « Bienvenue la famille … » */
   familyName: string;
   city: string;
   currentMemberId: string;
@@ -237,9 +237,7 @@ export type AppSettings = {
   defaultReminderMinutes: number;
   healthUnlocked: boolean;
   weekStartsOn: 0 | 1;
-  /** Code famille partagé (ex: PEPS-A3F9) — vide = local only */
   familyCode: string;
-  /** Sync cloud activée */
   cloudSync: boolean;
 };
 
