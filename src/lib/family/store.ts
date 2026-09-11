@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { uid } from "@/lib/utils";
 import { createSeedState } from "./seed";
-import { uid } from "./ids";
 import type {
   Activity,
   AppSettings,
