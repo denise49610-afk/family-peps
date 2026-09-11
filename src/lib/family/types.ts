@@ -1,30 +1,8 @@
 export const MEMBER_COLORS = [
-  "rose",
-  "corail",
-  "rouge",
-  "peche",
-  "terracotta",
-  "orange",
-  "ambre",
-  "jaune",
-  "citron",
-  "menthe",
-  "vert",
-  "sapin",
-  "sauge",
-  "turquoise",
-  "cyan",
-  "ciel",
-  "bleu",
-  "marine",
-  "indigo",
-  "violet",
-  "lilas",
-  "lavande",
-  "fuchsia",
-  "bordeaux",
-  "chocolat",
-  "taupe",
+  "rose", "corail", "rouge", "peche", "terracotta", "orange", "ambre", "jaune",
+  "citron", "menthe", "vert", "sapin", "sauge", "turquoise", "cyan", "ciel",
+  "bleu", "marine", "indigo", "violet", "lilas", "lavande", "fuchsia", "bordeaux",
+  "chocolat", "taupe",
 ] as const;
 
 export type MemberColor = (typeof MEMBER_COLORS)[number];
@@ -119,7 +97,6 @@ export type FamilyEvent = {
   color: MemberColor | null;
   recurrence: Recurrence;
   attachmentIds: string[];
-  /** Visible uniquement par les parents si true */
   parentOnly?: boolean;
 };
 
@@ -182,7 +159,6 @@ export type FamilyDocument = {
   mimeType: string;
   dataUrl: string;
   createdAt: string;
-  /** Visible uniquement par les parents si true */
   parentOnly?: boolean;
 };
 
@@ -239,6 +215,7 @@ export type AppSettings = {
   weekStartsOn: 0 | 1;
   familyCode: string;
   cloudSync: boolean;
+  completedKeys: string[];
 };
 
 export type FamilyState = {
