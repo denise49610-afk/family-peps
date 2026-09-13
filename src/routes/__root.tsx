@@ -8,7 +8,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { AppShell } from "@/components/shell";
 import { EditorsProvider } from "@/components/editors-context";
-import { EditorsHost } from "@/components/forms";
+import { EditorsHost } from "@/components/editors-host";
 import { ChatWatch } from "@/components/chat-watch";
 import { FamilyHydrator } from "@/components/family-hydrator";
 import { Toaster } from "sonner";
