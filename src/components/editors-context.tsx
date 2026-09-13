@@ -12,11 +12,12 @@ export type EditorTarget =
   | { type: "info"; id?: string }
   | { type: "contact"; id?: string; memberId?: string }
   | { type: "quick" }
+  | { type: "brain-dump" }
   | null;
 
 type Ctx = {
   target: EditorTarget;
-  open: (t: EditorTarget) => void;
+  open: (t: NonNullable<EditorTarget>) => void;
   close: () => void;
 };
 
@@ -25,13 +26,14 @@ const EditorsContext = createContext<Ctx | null>(null);
 export function EditorsProvider({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<EditorTarget>(null);
   const close = useCallback(() => setTarget(null), []);
+  const open = useCallback((t: NonNullable<EditorTarget>) => setTarget(t), []);
   const value = useMemo(
     () => ({
       target,
-      open: setTarget,
+      open,
       close,
     }),
-    [target, close],
+    [target, open, close],
   );
   return <EditorsContext.Provider value={value}>{children}</EditorsContext.Provider>;
 }
